@@ -120,9 +120,9 @@ func allocate() ([]string, error) {
 	//var region = "us-east1"
 	var apptoken []string
 
-	certPath, _ := filepath.Abs("/home/trota/Code/cassandra/astra_gocql_connect/cert")
-	keyPath, _ := filepath.Abs("/home/trota/Code/cassandra/astra_gocql_connect/key")
-	caPath, _ := filepath.Abs("/home/trota/Code/cassandra/astra_gocql_connect/ca.crt")
+	certPath, _ := filepath.Abs("/home/trota/Code/cassandra/astra_gocql_connect/certs/cert")
+	keyPath, _ := filepath.Abs("/home/trota/Code/cassandra/astra_gocql_connect/certs/key")
+	caPath, _ := filepath.Abs("/home/trota/Code/cassandra/astra_gocql_connect/certs/ca.crt")
 	cert, _ := tls.LoadX509KeyPair(certPath, keyPath)
 	caCert, _ := ioutil.ReadFile(caPath)
 	caCertPool := x509.NewCertPool()

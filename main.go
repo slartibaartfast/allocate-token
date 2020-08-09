@@ -43,8 +43,8 @@ func main() {
 	// Serve 200 status on /healthz for k8s health checks
 	http.HandleFunc("/healthz", handleHealthz)
 
-	// Return the GameServerStatus of the allocated replica to the authorized client
-	http.HandleFunc("/address", getOnly(basicAuth(handleAddress)))
+	// Return the Astra GraphQL token to the authorized client
+	http.HandleFunc("/authToken", getOnly(basicAuth(handleToken)))
 
 	// Run the HTTP server using the bound certificate and key for TLS
 	if err := http.ListenAndServeTLS(":8000", "/home/service/certs/tls.crt", "/home/service/certs/tls.key", nil); err != nil {
@@ -97,8 +97,8 @@ func handleHealthz(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Let /address return the token
-func handleAddress(w http.ResponseWriter, r *http.Request) {
+// Let /authToken return the token
+func handleToken(w http.ResponseWriter, r *http.Request) {
 	apptoken, err := allocate()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -106,7 +106,7 @@ func handleAddress(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(&result{apptoken})
 	if err != nil {
-		log.Println("Error writing json from /address")
+		log.Println("Error writing json from /authToken")
 	}
 }
 
@@ -120,9 +120,9 @@ func allocate() ([]string, error) {
 	//var region = "us-east1"
 	var apptoken []string
 
-	certPath, _ := filepath.Abs("/home/trota/Code/cassandra/astra_gocql_connect/certs/cert")
-	keyPath, _ := filepath.Abs("/home/trota/Code/cassandra/astra_gocql_connect/certs/key")
-	caPath, _ := filepath.Abs("/home/trota/Code/cassandra/astra_gocql_connect/certs/ca.crt")
+	certPath, _ := filepath.Abs("/home/service/certs/cert")
+	keyPath, _ := filepath.Abs("/home/service/certs/key")
+	caPath, _ := filepath.Abs("/home/service/certs/ca.crt")
 	cert, _ := tls.LoadX509KeyPair(certPath, keyPath)
 	caCert, _ := ioutil.ReadFile(caPath)
 	caCertPool := x509.NewCertPool()

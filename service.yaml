@@ -7,40 +7,41 @@ metadata:
 spec:
   containers:
   - name: token-allocator
-    image: trota/token-allocator:0.0.1
+    image: docker.io/trota/token-allocator:0.0.5
+    ports:
+    - containerPort: 8000
     volumeMounts:
     - name: secret-volume
       mountPath: "/home/service/certs"
   volumes:
   - name: secret-volume
-      secret:
-        secretName: allocatorsecret
+    secret:
+      secretName: allocatorsecret
   - name: allocatorw3secret
-      secret:
-        secretName: allocatorw3secret
+    secret:
+      secretName: allocatorw3secret
   - name: astraca
-      secret:
-        secretName: astraca
+    secret:
+      secretName: astraca
   - name: astrakey
-      secret:
-        secretName: astrakey
+    secret:
+      secretName: astrakey
   - name: astracert
-      secret:
-        secretName: astracert
-
+    secret:
+      secretName: astracert
 ---
-kind: Service
 apiVersion: v1
+kind: Service
 metadata:
   name: token-allocator-service
 spec:
   selector:
     app: token-allocator
   ports:
-  - protocol: TCP
-    port: 80
-    port: 443
-    targetPort: 8000
+    - name: https
+      protocol: TCP
+      port: 443
+      targetPort: 8000
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress

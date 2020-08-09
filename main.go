@@ -30,12 +30,15 @@ type result struct {
 
 // Main will set up an http server and three endpoints
 func main() {
-	// Create it or append to the log file
-	file, err := os.OpenFile("/home/servicee/logs/allocator-log.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	// Create or append to the log file
+	file, err := os.OpenFile("/home/service/logs/allocator-log.txt",
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Fatal(err)
+	} else {
+		log.SetOutput(file)
+		log.Println("HTTPS server is running on port 8000")
 	}
-	log.SetOutput(file)
 
 	// Serve 200 status on / for k8s health checks
 	http.HandleFunc("/", handleRoot)

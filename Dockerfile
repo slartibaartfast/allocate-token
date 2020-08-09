@@ -3,6 +3,7 @@ FROM golang:1.14 as builder
 
 WORKDIR /go/src/github.com/slartibaartfast
 RUN git clone https://github.com/slartibaartfast/allocate-token.git
+RUN go get github.com/gocql/gocql
 
 WORKDIR /go/src/github.com/slartibaartfast/allocate-token
 ADD ./main.go .
@@ -18,7 +19,8 @@ COPY --from=builder /go/src/github.com/slartibaartfast/allocate-token \
                     /home/service
 
 RUN chown -R service /home/service && \
-    chmod o+x /home/service/service
+    chmod o+x /home/service/service && \
+    mkdir /home/service/logs
 
 USER 1000
 ENTRYPOINT /home/service/service

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
@@ -169,8 +170,14 @@ func allocate() ([]string, error) {
 	}
 	req.Header.Add("x-cassandra-request-id", uuid)
 
+	buf, bodyErr := ioutil.ReadAll(req.Body)
+	if bodyErr != nil {
+		log.Println("bodyErr ", bodyErr.Error())
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Println("The request: %q", ioutil.NopCloser(bytes.NewBuffer(buf)))
 		log.Println("Error fetching token from Datastax")
 	}
 	defer resp.Body.Close()

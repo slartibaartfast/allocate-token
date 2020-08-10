@@ -9,19 +9,26 @@ WORKDIR /go/src/github.com/slartibaartfast/allocate-token
 ADD ./main.go .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o service .
 
+WORKDIR /home/service/logs
+RUN touch /home/service/logs/allocator-log.txt
 
 # Create the final image that will run the token allocation service
 FROM alpine:3.12
 RUN apk add --update ca-certificates
 RUN adduser -D -u 1000 service
 
-COPY --from=builder /go/src/github.com/slartibaartfast/allocate-token \
-                    /home/service
+COPY --from=builder --chown=1000 \
+     /go/src/github.com/slartibaartfast/allocate-token \
+     /home/service
 
-RUN chown -R service /home/service && \
-    chmod o+x /home/service/service && \
-    mkdir /home/service/logs && \
-    chmod o+rw /home/service/logs
+COPY --from=builder --chown=1000 \
+     /home/service/logs \
+     /home/service/logs
 
-USER service
+#RUN chmod o+x /home/service/service && \
+#    mkdir /home/service/logs && \
+#    chmod o+rw /home/service/logs && \
+#    chown -R service /home/service
+
+USER 1000
 ENTRYPOINT /home/service/service

@@ -37,7 +37,7 @@ func main() {
 		log.Fatal(err)
 	} else {
 		log.SetOutput(file)
-		log.Println("HTTPS server is running on port 8000")
+		log.Println("Started logging")
 	}
 
 	// Serve 200 status on / for k8s health checks

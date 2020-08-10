@@ -20,7 +20,8 @@ COPY --from=builder /go/src/github.com/slartibaartfast/allocate-token \
 
 RUN chown -R service /home/service && \
     chmod o+x /home/service/service && \
-    mkdir /home/service/logs
+    mkdir /home/service/logs && \
+    chmod o+rw /home/service/logs
 
-USER 1000
+USER service
 ENTRYPOINT /home/service/service

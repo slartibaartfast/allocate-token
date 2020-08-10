@@ -115,6 +115,7 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 
 // Generate a token and return it to the caller
 func allocate() ([]string, error) {
+	log.Println("beginning of allocate")
 	var cqlshrcHost = "6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.db.astra.datastax.com"
 	var cqlshrcPort = "31770"
 	var username = "KVUser"
@@ -123,9 +124,9 @@ func allocate() ([]string, error) {
 	//var region = "us-east1"
 	var apptoken []string
 
-	certPath, _ := filepath.Abs("/home/service/certs/cert")
-	keyPath, _ := filepath.Abs("/home/service/certs/key")
-	caPath, _ := filepath.Abs("/home/service/certs/ca.crt")
+	certPath, _ := filepath.Abs("/home/service/astracerts/tls.crt")
+	keyPath, _ := filepath.Abs("/home/service/astracerts/tls.key")
+	caPath, _ := filepath.Abs("/home/service/astraca/astraca")
 	cert, _ := tls.LoadX509KeyPair(certPath, keyPath)
 	caCert, _ := ioutil.ReadFile(caPath)
 	caCertPool := x509.NewCertPool()

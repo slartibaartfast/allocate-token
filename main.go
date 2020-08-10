@@ -121,6 +121,7 @@ func allocate() ([]string, error) {
 	var cqlshrcPort = "31770"
 	var username = "KVUser"
 	var password = "KVPassword"
+	var apiEndpoint = "6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.db.astra.datastax.com/api/rest/v1/auth"
 	//var clusterid = "6956bade-64fb-4dcd-9489-d3f836b92762"
 	//var region = "us-east1"
 	var apptoken []string
@@ -137,6 +138,7 @@ func allocate() ([]string, error) {
 		RootCAs:      caCertPool,
 	}
 
+	// TODO: don't need to make a new cluster?
 	cluster := gocql.NewCluster(cqlshrcHost)
 	cluster.SslOpts = &gocql.SslOptions{
 		Config:                 tlsConfig,
@@ -159,16 +161,27 @@ func allocate() ([]string, error) {
 		b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 
 	// fetch a graphql token from Astra, store it in resp
+	// TODO: create a transport and use it in the client
+	// https://golang.org/pkg/net/http/
 	client := &http.Client{}
 	params := url.Values{}
 	params.Set("username", username)
 	params.Set("password", password)
 	postData := strings.NewReader(params.Encode())
-	req, err := http.NewRequest("POST", cqlshrcHost, postData)
+	req, err := http.NewRequest("POST", apiEndpoint, postData)
 	if err != nil {
 		log.Println("Error building request")
 	}
+	req.Header.Add("accept", "*/*")
+	req.Header.Add("content-type", "application/json")
 	req.Header.Add("x-cassandra-request-id", uuid)
+
+	//	curl --request POST \
+	//	  --url https://${ASTRA_CLUSTER_ID}-${ASTRA_CLUSTER_REGION}.apps.astra.datastax.com/api/rest/v1/auth \
+	//	  --header 'accept: */*' \
+	//	  --header 'content-type: application/json' \
+	//	  --header 'x-cassandra-request-id: {unique-UUID}' \
+	//	  --data '{"username":"'"${ASTRA_DB_USERNAME}"'", "password":"'"${ASTRA_DB_PASSWORD}"'"}'
 
 	buf, bodyErr := ioutil.ReadAll(req.Body)
 	if bodyErr != nil {
@@ -177,10 +190,11 @@ func allocate() ([]string, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("The request: %q", ioutil.NopCloser(bytes.NewBuffer(buf)))
+		log.Println("The request data: ", ioutil.NopCloser(bytes.NewBuffer(buf)))
 		log.Println("Error fetching token from Datastax")
 	}
 	defer resp.Body.Close()
+
 	var res map[string]interface{}
 	json.NewDecoder(resp.Body).Decode(&res)
 	apptoken = res["authToken"].([]string)
@@ -188,11 +202,11 @@ func allocate() ([]string, error) {
 	// connect to the cluster
 	session, err := cluster.CreateSession()
 	if err != nil {
-		log.Println("Error fetching token from Datastax")
+		log.Println("Error creating session")
 	}
 	defer session.Close()
 
-	// get the session token from the db
+	// update the user credentials record with the token
 	if err := session.Query(`UPDATE tribe_user_credentials SET app_token = ? WHERE email = ?`,
 		uuid, "dogdogalina@mrdogdogalina.com").Exec; err != nil {
 		log.Println("Error fetching token")

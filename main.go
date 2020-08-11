@@ -199,7 +199,8 @@ func allocate() (string, string, error) {
 	// https://golang.org/pkg/net/http/
 
 	client := &http.Client{}
-	var jsonData = []byte(`{"username":"` + username + `","password":"` + password + `"}`)
+	//var jsonData = []byte(`{"username":"` + username + `","password":"` + password + `"}`)
+	var jsonData = []byte(`"username":"` + username + `","password":"` + password + `"`)
 	req, err := http.NewRequest("POST", apiEndpoint, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("Error building request")

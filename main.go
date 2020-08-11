@@ -169,11 +169,11 @@ func fetchToken() (string, string, error) {
 		log.Println("Error adding headers")
 	} else {
 		log.Println("Set headers")
-		// Loop over header names
+		//Loop over header names
 		for name, values := range req.Header {
-			// Loop over all values for the name.
+			//Loop over all values for the name.
 			for _, value := range values {
-				fmt.Println("Header name, value: ", name, value)
+				log.Println("Header name, value: ", name, value)
 			}
 		}
 	}
@@ -192,11 +192,12 @@ func fetchToken() (string, string, error) {
 		log.Println("Error fetching token from Datastax")
 		log.Println("Error: ", err)
 	}
-	defer resp.Body.Close()
 
 	var res map[string]interface{}
 	json.NewDecoder(resp.Body).Decode(&res)
 	apptoken = res["authToken"].(string)
+
+	resp.Body.Close()
 
 	//return the x-cassandra-token and x-cassandra-request-id values
 	return apptoken, uuid, nil

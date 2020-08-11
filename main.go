@@ -142,6 +142,17 @@ func allocate() (string, string, error) {
 	var apptoken string
 	//var jsonData []byte
 
+	// generate a uuid
+	// gocql.UUID also generates one... var id gocqlUUID
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		log.Println("Error generating uuid")
+	}
+	uuid := fmt.Sprintf("%x-%x-%x-%x-%x",
+		b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+
+	// set up the connection
 	certPath, _ := filepath.Abs("/home/service/astracerts/tls.crt")
 	keyPath, _ := filepath.Abs("/home/service/astracerts/tls.key")
 	caPath, _ := filepath.Abs("/home/service/astraca/astraca")
@@ -156,6 +167,7 @@ func allocate() (string, string, error) {
 
 	cluster := gocql.NewCluster(cqlshrcHost)
 	cluster.Keyspace = "killrvideo"
+	cluster.Consistency = gocql.One
 	cluster.SslOpts = &gocql.SslOptions{
 		Config:                 tlsConfig,
 		EnableHostVerification: false,
@@ -166,25 +178,18 @@ func allocate() (string, string, error) {
 	}
 	cluster.Hosts = []string{cqlshrcHost + ":" + cqlshrcPort}
 
-	// generate a uuid
-	// gocql.UUID also generates one... var id gocqlUUID
-	b := make([]byte, 16)
-	_, err := rand.Read(b)
-	if err != nil {
-		log.Println("Error generating uuid")
-	}
-	uuid := fmt.Sprintf("%x-%x-%x-%x-%x",
-		b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
-
 	// connect to the cluster
 	session, err := cluster.CreateSession()
 	if err != nil {
 		log.Println("Error creating session")
+	} else {
+		log.Println("Session created successfully")
 	}
 	defer session.Close()
 
 	// fetch a graphql token from Astra api, store it in resp
 	// TODO: create a transport and use it in the client
+	// TODO: make this it's own function
 	// https://golang.org/pkg/net/http/
 	client := &http.Client{}
 	params := url.Values{}
@@ -194,6 +199,10 @@ func allocate() (string, string, error) {
 	req, err := http.NewRequest("POST", apiEndpoint, postData)
 	if err != nil {
 		log.Println("Error building request")
+	} else {
+		log.Println("Request created successfully")
+		log.Println("Request apiEndpoint: ", apiEndpoint)
+		log.Println("Request postData: ", postData)
 	}
 	req.Header.Add("accept", "*/*")
 	req.Header.Add("content-type", "application/json")
@@ -205,10 +214,13 @@ func allocate() (string, string, error) {
 	buf, bodyErr := ioutil.ReadAll(req.Body)
 	if bodyErr != nil {
 		log.Println("bodyErr ", bodyErr.Error())
+	} else {
+		log.Println("Body created successfully")
 	}
 
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Println("The uuid: ", uuid)
 		log.Println("The request data: ", ioutil.NopCloser(bytes.NewBuffer(buf)))
 		log.Println("Error fetching token from Datastax")
 	}

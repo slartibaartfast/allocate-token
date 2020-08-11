@@ -11,10 +11,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/gocql/gocql"
@@ -30,6 +28,12 @@ type result struct {
 	AppToken  string `json:"authToken"`
 	RequestID string `json:"requestID"`
 }
+
+// The structure of the payload we send to Astra
+//type credentials struct {
+//	Username string `json:"username"`
+//	Password string `json:"password"`
+//}
 
 // Main will set up an http server and three endpoints
 func main() {
@@ -193,32 +197,30 @@ func allocate() (string, string, error) {
 	// TODO: create a transport and use it in the client
 	// TODO: make this it's own function
 	// https://golang.org/pkg/net/http/
+
 	client := &http.Client{}
-	params := url.Values{}
-	params.Set("username", username)
-	params.Set("password", password)
-	postData := strings.NewReader(params.Encode())
-	req, err := http.NewRequest("POST", apiEndpoint, postData)
+	var jsonData = []byte(`{"username":"` + username + `","password":"` + password + `"}`)
+	req, err := http.NewRequest("POST", apiEndpoint, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("Error building request")
 	} else {
 		log.Println("Request created successfully")
 		log.Println("Request apiEndpoint: ", apiEndpoint)
-		log.Println("Request postData: ", postData)
+		log.Println("Request jsonData: ", jsonData)
 	}
-	req.Header.Add("accept", "*/*")
-	req.Header.Add("content-type", "application/json")
-	req.Header.Add("x-cassandra-request-id", uuid)
+	req.Header.Set("accept", "*/*")
+	req.Header.Set("content-type", "application/json")
+	req.Header.Set("x-cassandra-request-id", uuid)
 	if err != nil {
 		log.Println("Error adding headers")
 	} else {
-    log.Println("Added headers")
+		log.Println("Set headers")
 		// Loop over header names
 		for name, values := range req.Header {
-		    // Loop over all values for the name.
-		    for _, value := range values {
-		        fmt.Println(name, value)
-		    }
+			// Loop over all values for the name.
+			for _, value := range values {
+				fmt.Println("Header name, value: ", name, value)
+			}
 		}
 	}
 

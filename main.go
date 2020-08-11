@@ -53,7 +53,7 @@ func main() {
 	// Serve 200 status on /healthz for k8s health checks
 	http.HandleFunc("/healthz", handleHealthz)
 
-	// Return the Astra GraphQL token to the authorized client
+	// Return the Astra GraphQL token from Datastax
 	http.HandleFunc("/authToken", getOnly(basicAuth(handleToken)))
 
 	// Run the HTTP server using the bound certificate and key for TLS
@@ -109,7 +109,7 @@ func handleHealthz(w http.ResponseWriter, r *http.Request) {
 
 // Let /authToken return the token
 func handleToken(w http.ResponseWriter, r *http.Request) {
-	apptoken, uuid, err := allocate()
+	apptoken, uuid, err := fetchToken()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -120,28 +120,15 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Generate a token and return it to the caller
-// Send this to get the x-cassandra-token
-//	curl --request POST \
-//	  --url https://${ASTRA_CLUSTER_ID}-${ASTRA_CLUSTER_REGION}.apps.astra.datastax.com/api/rest/v1/auth \
-//	  --header 'accept: */*' \
-//	  --header 'content-type: application/json' \
-//	  --header 'x-cassandra-request-id: {unique-UUID}' \
-//	  --data '{"username":"'"${ASTRA_DB_USERNAME}"'", "password":"'"${ASTRA_DB_PASSWORD}"'"}'
-
-// Return the request-id and token to the caller so they can use it to log in
-//curl --request GET \
-//--url https://${ASTRA_CLUSTER_ID}-${ASTRA_CLUSTER_REGION}.apps.astra.datastax.com/api/rest/v1/keyspaces \
-//--header 'accept: application/json' \
-//--header 'x-cassandra-request-id: 3d9a5582-b5d9-401a-bfcc-9fc4c915d4a8' \
-//--header "x-cassandra-token: aa5fe743-a764-47a2-9f3b-8467545593b4"
-func allocate() (string, string, error) {
-	log.Println("begining of allocate")
-	var cqlshrcHost = "6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.db.astra.datastax.com"
-	var cqlshrcPort = "31770"
+// Fetch the token and from Astra
+// fetch a graphql token from Astra api, store it in resp
+// TODO: create a transport and use it in the client
+// TODO: make this it's own function
+// https://golang.org/pkg/net/http/
+func fetchToken() (string, string, error) {
 	var username = "KVUser"
 	var password = "KVPassword"
-	var apiEndpoint = "6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.db.astra.datastax.com/api/rest/v1/auth"
+	var apiEndpoint = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.db.astra.datastax.com/api/rest/v1/auth"
 	//var clusterid = "6956bade-64fb-4dcd-9489-d3f836b92762"
 	//var region = "us-east1"
 	var apptoken string
@@ -157,48 +144,14 @@ func allocate() (string, string, error) {
 	uuid := fmt.Sprintf("%x-%x-%x-%x-%x",
 		b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 
-	// set up the connection
-	certPath, _ := filepath.Abs("/home/service/astracerts/tls.crt")
-	keyPath, _ := filepath.Abs("/home/service/astracerts/tls.key")
-	caPath, _ := filepath.Abs("/home/service/astraca/astraca")
-	cert, _ := tls.LoadX509KeyPair(certPath, keyPath)
-	caCert, _ := ioutil.ReadFile(caPath)
-	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCert)
-	tlsConfig := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		RootCAs:      caCertPool,
+	tr := &http.Transport{
+		MaxIdleConns:       10,
+		IdleConnTimeout:    30 * time.Second,
+		DisableCompression: true,
 	}
 
-	cluster := gocql.NewCluster(cqlshrcHost)
-	cluster.Timeout = time.Second * 30
-	cluster.Keyspace = "killrvideo"
-	cluster.Consistency = gocql.One
-	cluster.SslOpts = &gocql.SslOptions{
-		Config:                 tlsConfig,
-		EnableHostVerification: false,
-	}
-	cluster.Authenticator = gocql.PasswordAuthenticator{
-		Username: username,
-		Password: password,
-	}
-	cluster.Hosts = []string{cqlshrcHost + ":" + cqlshrcPort}
+	client := &http.Client{Transport: tr}
 
-	// connect to the cluster
-	session, err := cluster.CreateSession()
-	if err != nil {
-		log.Println("Error creating session")
-	} else {
-		log.Println("Session created successfully")
-	}
-	defer session.Close()
-
-	// fetch a graphql token from Astra api, store it in resp
-	// TODO: create a transport and use it in the client
-	// TODO: make this it's own function
-	// https://golang.org/pkg/net/http/
-
-	client := &http.Client{}
 	//var jsonData = []byte(`{"username":"` + username + `","password":"` + password + `"}`)
 	var jsonData = []byte(`"username":"` + username + `","password":"` + password + `"`)
 	req, err := http.NewRequest("POST", apiEndpoint, bytes.NewBuffer(jsonData))
@@ -237,6 +190,7 @@ func allocate() (string, string, error) {
 		log.Println("The uuid: ", uuid)
 		log.Println("The request data: ", ioutil.NopCloser(bytes.NewBuffer(buf)))
 		log.Println("Error fetching token from Datastax")
+		log.Println("Error: ", err)
 	}
 	defer resp.Body.Close()
 
@@ -244,12 +198,72 @@ func allocate() (string, string, error) {
 	json.NewDecoder(resp.Body).Decode(&res)
 	apptoken = res["authToken"].(string)
 
+	//return the x-cassandra-token and x-cassandra-request-id values
+	return apptoken, uuid, nil
+}
+
+// Generate a token and return it to the caller
+// Send this to get the x-cassandra-token
+//	curl --request POST \
+//	  --url https://${ASTRA_CLUSTER_ID}-${ASTRA_CLUSTER_REGION}.apps.astra.datastax.com/api/rest/v1/auth \
+//	  --header 'accept: */*' \
+//	  --header 'content-type: application/json' \
+//	  --header 'x-cassandra-request-id: {unique-UUID}' \
+//	  --data '{"username":"'"${ASTRA_DB_USERNAME}"'", "password":"'"${ASTRA_DB_PASSWORD}"'"}'
+
+// Return the request-id and token to the caller so they can use it to log in
+//curl --request GET \
+//--url https://${ASTRA_CLUSTER_ID}-${ASTRA_CLUSTER_REGION}.apps.astra.datastax.com/api/rest/v1/keyspaces \
+//--header 'accept: application/json' \
+//--header 'x-cassandra-request-id: 3d9a5582-b5d9-401a-bfcc-9fc4c915d4a8' \
+//--header "x-cassandra-token: aa5fe743-a764-47a2-9f3b-8467545593b4"
+
+// Write the request-id and token to the user credentials table
+func allocate(username string, password string, uuid string) error {
+	log.Println("begining of allocate")
+	var cqlshrcHost = "6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.db.astra.datastax.com"
+	var cqlshrcPort = "31770"
+
+	// set up the connection
+	certPath, _ := filepath.Abs("/home/service/astracerts/tls.crt")
+	keyPath, _ := filepath.Abs("/home/service/astracerts/tls.key")
+	caPath, _ := filepath.Abs("/home/service/astraca/astraca")
+	cert, _ := tls.LoadX509KeyPair(certPath, keyPath)
+	caCert, _ := ioutil.ReadFile(caPath)
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		RootCAs:      caCertPool,
+	}
+
+	cluster := gocql.NewCluster(cqlshrcHost)
+	cluster.Timeout = time.Second * 30
+	cluster.Keyspace = "killrvideo"
+	cluster.Consistency = gocql.One
+	cluster.SslOpts = &gocql.SslOptions{
+		Config:                 tlsConfig,
+		EnableHostVerification: false,
+	}
+	cluster.Authenticator = gocql.PasswordAuthenticator{
+		Username: username,
+		Password: password,
+	}
+	cluster.Hosts = []string{cqlshrcHost + ":" + cqlshrcPort}
+
+	// connect to the cluster
+	session, err := cluster.CreateSession()
+	if err != nil {
+		log.Println("Error creating session")
+	} else {
+		log.Println("Session created successfully")
+	}
+	defer session.Close()
+
 	// update the user credentials record with the token
 	if err := session.Query(`UPDATE tribe_user_credentials SET app_token = ? WHERE email = ?`,
 		uuid, "dogdogalina@mrdogdogalina.com").Exec; err != nil {
 		log.Println("Error fetching token")
 	}
-
-	//return the x-cassandra-token and x-cassandra-request-id values
-	return apptoken, uuid, nil
+	return nil
 }

@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gocql/gocql"
 )
@@ -166,6 +167,7 @@ func allocate() (string, string, error) {
 	}
 
 	cluster := gocql.NewCluster(cqlshrcHost)
+	cluster.Timeout = time.Second * 30
 	cluster.Keyspace = "killrvideo"
 	cluster.Consistency = gocql.One
 	cluster.SslOpts = &gocql.SslOptions{
@@ -209,6 +211,15 @@ func allocate() (string, string, error) {
 	req.Header.Add("x-cassandra-request-id", uuid)
 	if err != nil {
 		log.Println("Error adding headers")
+	} else {
+    log.Println("Added headers")
+		// Loop over header names
+		for name, values := range req.Header {
+		    // Loop over all values for the name.
+		    for _, value := range values {
+		        fmt.Println(name, value)
+		    }
+		}
 	}
 
 	buf, bodyErr := ioutil.ReadAll(req.Body)

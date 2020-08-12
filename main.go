@@ -128,7 +128,7 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 func fetchToken() (string, string, error) {
 	var username = "KVUser"
 	var password = "KVPassword"
-	var apiEndpoint = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.db.astra.datastax.com/api/rest/v1/auth"
+	var apiEndpoint = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.apps.astra.datastax.com/api/rest/v1/auth"
 	//var clusterid = "6956bade-64fb-4dcd-9489-d3f836b92762"
 	//var region = "us-east1"
 	var apptoken string

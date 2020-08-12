@@ -193,6 +193,11 @@ func fetchToken() (string, string, error) {
 		log.Println("Error: ", err)
 	}
 
+	log.Println("response Status:", resp.Status)
+	log.Println("response Headers:", resp.Header)
+	body, _ := ioutil.ReadAll(resp.Body)
+	log.Println("response Body:", string(body))
+
 	var res map[string]interface{}
 	json.NewDecoder(resp.Body).Decode(&res)
 	apptoken = res["authToken"].(string)

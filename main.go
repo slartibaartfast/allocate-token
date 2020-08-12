@@ -178,17 +178,17 @@ func fetchToken() (string, string, error) {
 		}
 	}
 
-	buf, bodyErr := ioutil.ReadAll(req.Body)
-	if bodyErr != nil {
-		log.Println("bodyErr ", bodyErr.Error())
-	} else {
-		log.Println("Body created successfully")
-	}
+	//buf, bodyErr := ioutil.ReadAll(req.Body)
+	//if bodyErr != nil {
+	//	log.Println("bodyErr ", bodyErr.Error())
+	//} else {
+	//	log.Println("Body created successfully")
+	//}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("The uuid: ", uuid)
-		log.Println("The request data: ", ioutil.NopCloser(bytes.NewBuffer(buf)))
+		//log.Println("The uuid: ", uuid)
+		//log.Println("The request data: ", ioutil.NopCloser(bytes.NewBuffer(buf)))
 		log.Println("Error fetching token from Datastax")
 		log.Println("Error: ", err)
 	}

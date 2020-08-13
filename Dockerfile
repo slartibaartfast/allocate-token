@@ -8,6 +8,7 @@ RUN go get github.com/gocql/gocql
 WORKDIR /go/src/github.com/slartibaartfast/allocate-token
 ADD ./main.go .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o service .
+RUN rm Dockerfile kind-config.yaml main.go service.yaml
 
 WORKDIR /home/service/logs
 RUN touch /home/service/logs/allocator-log.txt

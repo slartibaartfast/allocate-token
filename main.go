@@ -254,6 +254,7 @@ func writeToDB(username string, password string, uuid string) error {
 	session, err := cluster.CreateSession()
 	if err != nil {
 		log.Println("Error creating session")
+		log.Println(err)
 	} else {
 		log.Println("Session created successfully")
 	}

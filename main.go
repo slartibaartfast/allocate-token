@@ -19,6 +19,9 @@ import (
 )
 
 //var apptoken string
+var username = "KVUser"
+var password = "KVPassword"
+var apiEndpoint = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.apps.astra.datastax.com/api/rest/v1/auth"
 
 // A handler for the web server
 type handler func(w http.ResponseWriter, r *http.Request)
@@ -125,14 +128,17 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(w).Encode(&result{authToken, requestID})
 	if err != nil {
 		log.Println("Error writing json from /authToken")
+	} else {
+		// write the requestID to the caller's credentials table
+		err = writeToDB(username, password, requestID)
 	}
 }
 
 // fetch a graphql api token from Astra api, return the token and a uuid
 func fetchToken() (string, string, error) {
-	var username = "KVUser"
-	var password = "KVPassword"
-	var apiEndpoint = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.apps.astra.datastax.com/api/rest/v1/auth"
+	//var username = "KVUser"
+	//var password = "KVPassword"
+	//var apiEndpoint = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.apps.astra.datastax.com/api/rest/v1/auth"
 	var apptoken = new(astraResponse)
 
 	// generate a uuid
@@ -157,6 +163,7 @@ func fetchToken() (string, string, error) {
 	req, err := http.NewRequest("POST", apiEndpoint, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("Error building request")
+		log.Println("Error: ", err)
 	} else {
 		log.Println("Request created successfully")
 		log.Println("Request apiEndpoint: ", apiEndpoint)

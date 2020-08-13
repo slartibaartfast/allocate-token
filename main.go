@@ -23,10 +23,16 @@ import (
 // A handler for the web server
 type handler func(w http.ResponseWriter, r *http.Request)
 
-// The structure of the json response
+// The structure of the json response from Astra
+// {"authToken":"74b98a80-7150-48b6-92b9-f0e58161b368"}
+type astraResponse struct {
+	AuthToken string `json:"authToken"`
+}
+
+// The structure of our json response
 type result struct {
-	AppToken  string `json:"authToken"`
-	RequestID string `json:"requestID"`
+	AppToken  astraResponse `json:"authToken"`
+	RequestID string        `json:"requestID"`
 }
 
 // The structure of the payload we send to Astra
@@ -109,29 +115,27 @@ func handleHealthz(w http.ResponseWriter, r *http.Request) {
 
 // Let /authToken return the token
 func handleToken(w http.ResponseWriter, r *http.Request) {
-	apptoken, uuid, err := fetchToken()
+	authToken, requestID, err := fetchToken()
+	log.Println("handleToken authToken:", authToken)
+	log.Println("handlToken requestID:", requestID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(&result{apptoken, uuid})
+	err = json.NewEncoder(w).Encode(&result{*authToken, requestID})
 	if err != nil {
 		log.Println("Error writing json from /authToken")
 	}
 }
 
-// Fetch the token and from Astra
-// fetch a graphql token from Astra api, store it in resp
-// TODO: create a transport and use it in the client
-// TODO: make this it's own function
-// https://golang.org/pkg/net/http/
-func fetchToken() (string, string, error) {
+// fetch a graphql api token from Astra api, store it in resp
+func fetchToken() (*astraResponse, string, error) {
 	var username = "KVUser"
 	var password = "KVPassword"
 	var apiEndpoint = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.apps.astra.datastax.com/api/rest/v1/auth"
 	//var clusterid = "6956bade-64fb-4dcd-9489-d3f836b92762"
 	//var region = "us-east1"
-	var apptoken string
+	var apptoken = new(astraResponse)
 	//var jsonData []byte
 
 	// generate a uuid
@@ -198,14 +202,18 @@ func fetchToken() (string, string, error) {
 	body, _ := ioutil.ReadAll(resp.Body)
 	log.Println("response Body:", string(body))
 
-	var res map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&res)
-	apptoken = res["authToken"].(string)
+	//var res map[string]interface{}
+	//json.NewDecoder(resp.Body).Decode(&res)
+	err = json.Unmarshal(body, &apptoken)
+	if err != nil {
+		log.Println("Error unmarshalling")
+		log.Println(err)
+	}
 
 	resp.Body.Close()
 
 	//return the x-cassandra-token and x-cassandra-request-id values
-	return apptoken, uuid, nil
+	return apptoken, uuid, err
 }
 
 // Generate a token and return it to the caller

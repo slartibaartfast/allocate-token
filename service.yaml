@@ -7,7 +7,7 @@ metadata:
 spec:
   containers:
   - name: token-allocator
-    image: docker.io/trota/token-allocator:0.0.21
+    image: docker.io/trota/token-allocator:0.0.22
     ports:
     - containerPort: 8000
     volumeMounts:

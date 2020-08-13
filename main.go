@@ -31,8 +31,8 @@ type astraResponse struct {
 
 // The structure of our json response
 type result struct {
-	AppToken  astraResponse `json:"authToken"`
-	RequestID string        `json:"requestID"`
+	AppToken  string `json:"authToken"`
+	RequestID string `json:"requestID"`
 }
 
 // The structure of the payload we send to Astra
@@ -122,21 +122,18 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(&result{*authToken, requestID})
+	err = json.NewEncoder(w).Encode(&result{authToken, requestID})
 	if err != nil {
 		log.Println("Error writing json from /authToken")
 	}
 }
 
-// fetch a graphql api token from Astra api, store it in resp
-func fetchToken() (*astraResponse, string, error) {
+// fetch a graphql api token from Astra api, return the token and a uuid
+func fetchToken() (string, string, error) {
 	var username = "KVUser"
 	var password = "KVPassword"
 	var apiEndpoint = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.apps.astra.datastax.com/api/rest/v1/auth"
-	//var clusterid = "6956bade-64fb-4dcd-9489-d3f836b92762"
-	//var region = "us-east1"
 	var apptoken = new(astraResponse)
-	//var jsonData []byte
 
 	// generate a uuid
 	// gocql.UUID also generates one... var id gocqlUUID
@@ -157,7 +154,6 @@ func fetchToken() (*astraResponse, string, error) {
 	client := &http.Client{Transport: tr}
 
 	var jsonData = []byte(`{"username":"` + username + `","password":"` + password + `"}`)
-	//var jsonData = []byte(`"username":"` + username + `","password":"` + password + `"`)
 	req, err := http.NewRequest("POST", apiEndpoint, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("Error building request")
@@ -202,8 +198,6 @@ func fetchToken() (*astraResponse, string, error) {
 	body, _ := ioutil.ReadAll(resp.Body)
 	log.Println("response Body:", string(body))
 
-	//var res map[string]interface{}
-	//json.NewDecoder(resp.Body).Decode(&res)
 	err = json.Unmarshal(body, &apptoken)
 	if err != nil {
 		log.Println("Error unmarshalling")
@@ -213,27 +207,11 @@ func fetchToken() (*astraResponse, string, error) {
 	resp.Body.Close()
 
 	//return the x-cassandra-token and x-cassandra-request-id values
-	return apptoken, uuid, err
+	return apptoken.AuthToken, uuid, err
 }
 
-// Generate a token and return it to the caller
-// Send this to get the x-cassandra-token
-//	curl --request POST \
-//	  --url https://${ASTRA_CLUSTER_ID}-${ASTRA_CLUSTER_REGION}.apps.astra.datastax.com/api/rest/v1/auth \
-//	  --header 'accept: */*' \
-//	  --header 'content-type: application/json' \
-//	  --header 'x-cassandra-request-id: {unique-UUID}' \
-//	  --data '{"username":"'"${ASTRA_DB_USERNAME}"'", "password":"'"${ASTRA_DB_PASSWORD}"'"}'
-
-// Return the request-id and token to the caller so they can use it to log in
-//curl --request GET \
-//--url https://${ASTRA_CLUSTER_ID}-${ASTRA_CLUSTER_REGION}.apps.astra.datastax.com/api/rest/v1/keyspaces \
-//--header 'accept: application/json' \
-//--header 'x-cassandra-request-id: 3d9a5582-b5d9-401a-bfcc-9fc4c915d4a8' \
-//--header "x-cassandra-token: aa5fe743-a764-47a2-9f3b-8467545593b4"
-
 // Write the request-id and token to the user credentials table
-func allocate(username string, password string, uuid string) error {
+func writeToDB(username string, password string, uuid string) error {
 	log.Println("begining of allocate")
 	var cqlshrcHost = "6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.db.astra.datastax.com"
 	var cqlshrcPort = "31770"

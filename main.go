@@ -130,7 +130,7 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 		log.Println("Error writing json from /authToken")
 	} else {
 		// write the requestID to the caller's credentials table
-		err = writeToDB(username, password, requestID)
+		err = writeToDB(username, password, authToken, requestID)
 	}
 }
 
@@ -218,7 +218,7 @@ func fetchToken() (string, string, error) {
 }
 
 // Write the request-id and token to the user credentials table
-func writeToDB(username string, password string, uuid string) error {
+func writeToDB(username string, password string, authToken string, uuid string) error {
 	log.Println("begining of allocate")
 	var cqlshrcHost = "6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.db.astra.datastax.com"
 	var cqlshrcPort = "31770"
@@ -281,8 +281,9 @@ func writeToDB(username string, password string, uuid string) error {
 	defer session.Close()
 
 	// update the user credentials record with the token
-	if err := session.Query(`UPDATE tribe_user_credentials SET app_token = ? WHERE email = ?`,
-		uuid, "dogdogalina@mrdogdogalina.com").Exec(); err != nil {
+	if err := session.Query(
+		`UPDATE tribe_user_credentials SET app_token = ?, app_request_id = ? WHERE email = ?`,
+		authToken, uuid, "dogdogalina@mrdogdogalina.com").Exec(); err != nil {
 		log.Println("Error fetching token")
 		log.Println(err)
 	}

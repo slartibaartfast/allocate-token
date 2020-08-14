@@ -224,11 +224,31 @@ func writeToDB(username string, password string, uuid string) error {
 	var cqlshrcPort = "31770"
 
 	// set up the connection
-	certPath, _ := filepath.Abs("/home/service/astracerts/tls.crt")
-	keyPath, _ := filepath.Abs("/home/service/astracerts/tls.key")
+	certPath, err := filepath.Abs("/home/service/astracerts/tls.crt")
+	if err != nil {
+		log.Println("Error with certPath")
+		log.Println(err)
+	}
+	keyPath, err := filepath.Abs("/home/service/astracerts/tls.key")
+	if err != nil {
+		log.Println("Error with keyPath")
+		log.Println(err)
+	}
 	caPath, _ := filepath.Abs("/home/service/astraca/astraca")
-	cert, _ := tls.LoadX509KeyPair(certPath, keyPath)
-	caCert, _ := ioutil.ReadFile(caPath)
+	if err != nil {
+		log.Println("Error with caPath")
+		log.Println(err)
+	}
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		log.Println("Error loading cert key pair")
+		log.Println(err)
+	}
+	caCert, err := ioutil.ReadFile(caPath)
+	if err != nil {
+		log.Println("Error reading ca")
+		log.Println(err)
+	}
 	caCertPool := x509.NewCertPool()
 	caCertPool.AppendCertsFromPEM(caCert)
 	tlsConfig := &tls.Config{
@@ -262,8 +282,9 @@ func writeToDB(username string, password string, uuid string) error {
 
 	// update the user credentials record with the token
 	if err := session.Query(`UPDATE tribe_user_credentials SET app_token = ? WHERE email = ?`,
-		uuid, "dogdogalina@mrdogdogalina.com").Exec; err != nil {
+		uuid, "dogdogalina@mrdogdogalina.com").Exec(); err != nil {
 		log.Println("Error fetching token")
+		log.Println(err)
 	}
 	return nil
 }

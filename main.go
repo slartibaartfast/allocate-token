@@ -259,7 +259,7 @@ func writeToDB(username string, password string, uuid string) error {
 	cluster := gocql.NewCluster(cqlshrcHost)
 	cluster.Timeout = time.Second * 30
 	cluster.Keyspace = "killrvideo"
-	cluster.Consistency = gocql.One
+	cluster.Consistency = gocql.Quorum
 	cluster.SslOpts = &gocql.SslOptions{
 		Config:                 tlsConfig,
 		EnableHostVerification: false,

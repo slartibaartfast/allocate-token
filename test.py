@@ -16,7 +16,7 @@ urllib3.disable_warnings()
 def get_creds():
     print("Getting auth token and requestID values...")
     r = requests.get('https://localhost:8000/authToken',
-        auth=HTTPBasicAuth('v1GameClientKey', 'EAEC945C371B2EC361DE399C2F11E'),
+        auth=HTTPBasicAuth('dogdogalina@mrdogdogalina.com', 'ff9k3l2'),
         verify=False)
 
     jsonr = r.json()

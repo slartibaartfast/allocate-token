@@ -21,8 +21,9 @@ import (
 //var apptoken string
 var adminusername = "KVUser"
 var adminpassword = "KVPassword"
-var username string
-var password string // might not need this
+
+var email string
+
 var apiEndpoint = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.apps.astra.datastax.com/api/rest/v1/auth"
 var session *gocql.Session
 
@@ -168,6 +169,8 @@ func getOnly(h handler) handler {
 func basicAuth(pass handler) handler {
 	return func(w http.ResponseWriter, r *http.Request) {
 		username, password, _ := r.BasicAuth()
+		log.Println("basic auth username: ", username)
+		log.Println("basic auth password: ", password)
 		err := validateUser(username, password)
 		if err != nil {
 			http.Error(w, "authorization failed", http.StatusUnauthorized)
@@ -211,7 +214,8 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 		log.Println("Error writing json from /authToken")
 	} else {
 		// write the requestID to the caller's credentials table
-		err = writeToDB(authToken, requestID, username)
+		email, password, _ := r.BasicAuth()
+		err = writeToDB(authToken, requestID, email, password)
 	}
 }
 
@@ -226,6 +230,7 @@ func validateUser(username string, password string) error {
 		username, password).Scan(&user_id); err != nil {
 		log.Println("Error validating user")
 		log.Println(err)
+		return err
 	}
 	return nil
 }
@@ -314,7 +319,7 @@ func fetchToken() (string, string, error) {
 }
 
 // Write the request-id and token to the user credentials table
-func writeToDB(authToken string, uuid string, email string) error {
+func writeToDB(authToken string, uuid string, email string, password string) error {
 	if err := session.Query(
 		`UPDATE tribe_user_credentials SET app_token = ?, app_request_id = ? WHERE email = ?`,
 		authToken, uuid, email).Exec(); err != nil {

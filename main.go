@@ -19,9 +19,74 @@ import (
 )
 
 //var apptoken string
-var username = "KVUser"
-var password = "KVPassword"
+var adminusername = "KVUser"
+var adminpassword = "KVPassword"
+var username string
+var password string // might not need this
 var apiEndpoint = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.apps.astra.datastax.com/api/rest/v1/auth"
+var session *gocql.Session
+
+func init() {
+	var cqlshrcHost = "6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.db.astra.datastax.com"
+	var cqlshrcPort = "31770"
+
+	// set up the connection
+	certPath, err := filepath.Abs("/home/service/astracerts/tls.crt")
+	if err != nil {
+		log.Println("Error with certPath")
+		log.Println(err)
+	}
+	keyPath, err := filepath.Abs("/home/service/astracerts/tls.key")
+	if err != nil {
+		log.Println("Error with keyPath")
+		log.Println(err)
+	}
+	caPath, _ := filepath.Abs("/home/service/astraca/astraca")
+	if err != nil {
+		log.Println("Error with caPath")
+		log.Println(err)
+	}
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		log.Println("Error loading cert key pair")
+		log.Println(err)
+	}
+	caCert, err := ioutil.ReadFile(caPath)
+	if err != nil {
+		log.Println("Error reading ca")
+		log.Println(err)
+	}
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		RootCAs:      caCertPool,
+	}
+
+	cluster := gocql.NewCluster(cqlshrcHost)
+	cluster.Timeout = time.Second * 30
+	cluster.Keyspace = "killrvideo"
+	cluster.Consistency = gocql.Quorum
+	cluster.SslOpts = &gocql.SslOptions{
+		Config:                 tlsConfig,
+		EnableHostVerification: false,
+	}
+	cluster.Authenticator = gocql.PasswordAuthenticator{
+		Username: adminusername,
+		Password: adminpassword,
+	}
+	cluster.Hosts = []string{cqlshrcHost + ":" + cqlshrcPort}
+
+	// create a session
+	session, err = cluster.CreateSession()
+	if err != nil {
+		log.Println("Error creating session")
+		log.Println(err)
+	} else {
+		log.Println("Session created successfully")
+	}
+	fmt.Println("Astra init done")
+}
 
 // A handler for the web server
 type handler func(w http.ResponseWriter, r *http.Request)
@@ -56,6 +121,9 @@ func main() {
 		log.Println("Started logging")
 	}
 
+	// defer closing the session
+	defer session.Close()
+
 	// Serve 200 status on / for k8s health checks
 	http.HandleFunc("/", handleRoot)
 
@@ -85,10 +153,23 @@ func getOnly(h handler) handler {
 }
 
 // Let the web server do basic authentication
+//func basicAuth(pass handler) handler {
+//	return func(w http.ResponseWriter, r *http.Request) {
+//		key, value, _ := r.BasicAuth()
+//		if key != "v1GameClientKey" || value != "EAEC945C371B2EC361DE399C2F11E" {
+//			http.Error(w, "authorization failed", http.StatusUnauthorized)
+//			return
+//		}
+//		pass(w, r)
+//	}
+//}
+
+// Let the web server do basic authentication
 func basicAuth(pass handler) handler {
 	return func(w http.ResponseWriter, r *http.Request) {
-		key, value, _ := r.BasicAuth()
-		if key != "v1GameClientKey" || value != "EAEC945C371B2EC361DE399C2F11E" {
+		username, password, _ := r.BasicAuth()
+		err := validateUser(username, password)
+		if err != nil {
 			http.Error(w, "authorization failed", http.StatusUnauthorized)
 			return
 		}
@@ -130,8 +211,23 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 		log.Println("Error writing json from /authToken")
 	} else {
 		// write the requestID to the caller's credentials table
-		err = writeToDB(username, password, authToken, requestID)
+		err = writeToDB(authToken, requestID, username)
 	}
+}
+
+// Validate the received user credentials against the stored user credentials
+func validateUser(username string, password string) error {
+	log.Println("begining of validateUser")
+	var user_id string
+
+	// update the user credentials record with the token
+	if err := session.Query(
+		`SELECT user_id FROM tribe_user_credentials WHERE email = ? and password = ?`,
+		username, password).Scan(&user_id); err != nil {
+		log.Println("Error validating user")
+		log.Println(err)
+	}
+	return nil
 }
 
 // fetch a graphql api token from Astra api, return the token and a uuid
@@ -159,7 +255,7 @@ func fetchToken() (string, string, error) {
 
 	client := &http.Client{Transport: tr}
 
-	var jsonData = []byte(`{"username":"` + username + `","password":"` + password + `"}`)
+	var jsonData = []byte(`{"username":"` + adminusername + `","password":"` + adminpassword + `"}`)
 	req, err := http.NewRequest("POST", apiEndpoint, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("Error building request")
@@ -218,73 +314,11 @@ func fetchToken() (string, string, error) {
 }
 
 // Write the request-id and token to the user credentials table
-func writeToDB(username string, password string, authToken string, uuid string) error {
-	log.Println("begining of allocate")
-	var cqlshrcHost = "6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.db.astra.datastax.com"
-	var cqlshrcPort = "31770"
-
-	// set up the connection
-	certPath, err := filepath.Abs("/home/service/astracerts/tls.crt")
-	if err != nil {
-		log.Println("Error with certPath")
-		log.Println(err)
-	}
-	keyPath, err := filepath.Abs("/home/service/astracerts/tls.key")
-	if err != nil {
-		log.Println("Error with keyPath")
-		log.Println(err)
-	}
-	caPath, _ := filepath.Abs("/home/service/astraca/astraca")
-	if err != nil {
-		log.Println("Error with caPath")
-		log.Println(err)
-	}
-	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
-	if err != nil {
-		log.Println("Error loading cert key pair")
-		log.Println(err)
-	}
-	caCert, err := ioutil.ReadFile(caPath)
-	if err != nil {
-		log.Println("Error reading ca")
-		log.Println(err)
-	}
-	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCert)
-	tlsConfig := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		RootCAs:      caCertPool,
-	}
-
-	cluster := gocql.NewCluster(cqlshrcHost)
-	cluster.Timeout = time.Second * 30
-	cluster.Keyspace = "killrvideo"
-	cluster.Consistency = gocql.Quorum
-	cluster.SslOpts = &gocql.SslOptions{
-		Config:                 tlsConfig,
-		EnableHostVerification: false,
-	}
-	cluster.Authenticator = gocql.PasswordAuthenticator{
-		Username: username,
-		Password: password,
-	}
-	cluster.Hosts = []string{cqlshrcHost + ":" + cqlshrcPort}
-
-	// connect to the cluster
-	session, err := cluster.CreateSession()
-	if err != nil {
-		log.Println("Error creating session")
-		log.Println(err)
-	} else {
-		log.Println("Session created successfully")
-	}
-	defer session.Close()
-
-	// update the user credentials record with the token
+func writeToDB(authToken string, uuid string, email string) error {
 	if err := session.Query(
 		`UPDATE tribe_user_credentials SET app_token = ?, app_request_id = ? WHERE email = ?`,
-		authToken, uuid, "dogdogalina@mrdogdogalina.com").Exec(); err != nil {
-		log.Println("Error fetching token")
+		authToken, uuid, email).Exec(); err != nil {
+		log.Println("Error updating tribe_user_credentials with token, uuid")
 		log.Println(err)
 	}
 	return nil

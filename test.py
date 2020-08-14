@@ -4,7 +4,7 @@ import json
 import urllib3
 import requests
 from requests.auth import HTTPBasicAuth
-import unittest
+import uuid
 
 # disable ssl warnings until we have proper certs
 urllib3.disable_warnings()
@@ -76,6 +76,7 @@ def get_user_credentials(token, requestID):
         values {
           email
           appToken
+          appRequestId
           password
           userId
         }
@@ -96,8 +97,9 @@ def get_user_credentials(token, requestID):
 
 # get a token and requestID using our go service
 token, requestID = get_creds()
-assert len(token) > 0
-assert len(requestID) > 0
+assert token == str(uuid.UUID(token))
+assert requestID == str(uuid.UUID(requestID))
+
 
 # query the Astra db using the token and uuid
 user = get_user(token, requestID)

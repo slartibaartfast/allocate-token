@@ -224,9 +224,9 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 func checkUsername(username string) int {
 	var count int
 	if err := session.Query(
-		`SELECT count(*()) FROM tribe_user_credentials WHERE email = ?`,
+		`SELECT count(*) FROM tribe_user_credentials WHERE email = ?`,
 		username).Scan(&count); err != nil {
-		log.Println("Error validating user")
+		log.Println("Error confirming existance of user")
 		log.Println(err)
 		return 0
 	}

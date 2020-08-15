@@ -19,15 +19,20 @@ import (
 )
 
 //var apptoken string
+//TODO: differentiate between incorrect creds and no account matching the username
+//TODO: move adminusername and adminpassword to secrets
 var adminusername = "KVUser"
 var adminpassword = "KVPassword"
 
 var email string
+var count string
 
+//TODO:  move apiEndpoint to secrets
 var apiEndpoint = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.apps.astra.datastax.com/api/rest/v1/auth"
 var session *gocql.Session
 
 func init() {
+	//TODO:  move cqlshrcHost to secrets
 	var cqlshrcHost = "6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.db.astra.datastax.com"
 	var cqlshrcPort = "31770"
 
@@ -66,6 +71,7 @@ func init() {
 
 	cluster := gocql.NewCluster(cqlshrcHost)
 	cluster.Timeout = time.Second * 30
+	//TODO: move Keyspace to secrets
 	cluster.Keyspace = "killrvideo"
 	cluster.Consistency = gocql.Quorum
 	cluster.SslOpts = &gocql.SslOptions{
@@ -154,23 +160,18 @@ func getOnly(h handler) handler {
 }
 
 // Let the web server do basic authentication
-//func basicAuth(pass handler) handler {
-//	return func(w http.ResponseWriter, r *http.Request) {
-//		key, value, _ := r.BasicAuth()
-//		if key != "v1GameClientKey" || value != "EAEC945C371B2EC361DE399C2F11E" {
-//			http.Error(w, "authorization failed", http.StatusUnauthorized)
-//			return
-//		}
-//		pass(w, r)
-//	}
-//}
-
-// Let the web server do basic authentication
 func basicAuth(pass handler) handler {
 	return func(w http.ResponseWriter, r *http.Request) {
 		username, password, _ := r.BasicAuth()
 		log.Println("basic auth username: ", username)
 		log.Println("basic auth password: ", password)
+		// check to see if the user exists
+		count := checkUsername(username)
+		if count != 1 {
+			http.Error(w, "nonexistant username", http.StatusNotFound)
+			return
+		}
+		// validate the username and password
 		err := validateUser(username, password)
 		if err != nil {
 			http.Error(w, "authorization failed", http.StatusUnauthorized)
@@ -219,15 +220,29 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// See if this username exists
+func checkUsername(username string) int {
+	var count int
+	if err := session.Query(
+		`SELECT count(*()) FROM tribe_user_credentials WHERE email = ?`,
+		username).Scan(&count); err != nil {
+		log.Println("Error validating user")
+		log.Println(err)
+		return 0
+	}
+
+	return count
+}
+
 // Validate the received user credentials against the stored user credentials
 func validateUser(username string, password string) error {
 	log.Println("begining of validateUser")
-	var user_id string
+	var userID string
 
-	// update the user credentials record with the token
+	// Select a user with the supplied credentials
 	if err := session.Query(
 		`SELECT user_id FROM tribe_user_credentials WHERE email = ? and password = ?`,
-		username, password).Scan(&user_id); err != nil {
+		username, password).Scan(&userID); err != nil {
 		log.Println("Error validating user")
 		log.Println(err)
 		return err
@@ -319,6 +334,7 @@ func fetchToken() (string, string, error) {
 }
 
 // Write the request-id and token to the user credentials table
+//TODO: upsert the current time to date_creds_generated
 func writeToDB(authToken string, uuid string, email string, password string) error {
 	if err := session.Query(
 		`UPDATE tribe_user_credentials SET app_token = ?, app_request_id = ? WHERE email = ?`,

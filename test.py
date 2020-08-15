@@ -95,6 +95,15 @@ def get_user_credentials(token, requestID):
 
     return resp
 
+
+def wrong_username():
+    print("Getting auth token and requestID values...")
+    r = requests.get('https://localhost:8000/authToken',
+        auth=HTTPBasicAuth('idontexist@frankrizo.com', 'ff9k3l2'),
+        verify=False)
+
+    return r.status_code
+
 # get a token and requestID using our go service
 token, requestID = get_creds()
 assert token == str(uuid.UUID(token))
@@ -113,3 +122,7 @@ user_creds = get_user_credentials(token, requestID)
 user_creds = user_creds.json()
 assert user_creds['data']['tribeUserCredentials']['values'][0]['appToken'] == str(token)
 assert user_creds['data']['tribeUserCredentials']['values'][0]['appRequestId'] == str(requestID)
+
+# test if we identify nonexistant user
+wrong_username = wrong_username()
+assert wrong_username == 404

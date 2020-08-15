@@ -26,10 +26,5 @@ COPY --from=builder --chown=1000 \
      /home/service/logs \
      /home/service/logs
 
-#RUN chmod o+x /home/service/service && \
-#    mkdir /home/service/logs && \
-#    chmod o+rw /home/service/logs && \
-#    chown -R service /home/service
-
 USER 1000
 ENTRYPOINT /home/service/service

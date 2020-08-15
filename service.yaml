@@ -1,32 +1,67 @@
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: token-allocator
   labels:
     app: token-allocator
 spec:
-  containers:
-  - name: token-allocator
-    image: docker.io/trota/token-allocator:0.0.32
-    ports:
-    - containerPort: 8000
-    volumeMounts:
-    - name: allocator-w3-secret-volume
-      mountPath: "/home/service/certs"
-    - name: astra-tls-volume
-      mountPath: "/home/service/astracerts"
-    - name: astra-ca-volume
-      mountPath: "/home/service/astraca"
-  volumes:
-  - name: allocator-w3-secret-volume
-    secret:
-      secretName: allocatorw3secret
-  - name: astra-ca-volume
-    secret:
-      secretName: astraca
-  - name: astra-tls-volume
-    secret:
-      secretName: astratls
+  replicas: 1
+  selector:
+    matchLabels:
+      app: token-allocator
+  template:
+    metadata:
+      labels:
+        app: token-allocator
+    spec:
+      containers:
+      - name: token-allocator
+        image: docker.io/trota/token-allocator:0.0.32
+        ports:
+        - containerPort: 8000
+        env:
+        - name: ADMIN_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: astracreds
+              key: adminusername
+        - name: ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: astracreds
+              key: adminpassword
+        - name: API_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: astraapiendpoint
+              key: astraapiendpoint
+        - name: CQL_HOST
+          valueFrom:
+            secretKeyRef:
+              name: astracqlhost
+              key: astracqlhost
+        - name: ASTRA_KEYSPACE
+          valueFrom:
+            secretKeyRef:
+              name: astrakeyspace
+              key: astrakeyspace
+        volumeMounts:
+        - name: allocator-w3-secret-volume
+          mountPath: "/home/service/certs"
+        - name: astra-tls-volume
+          mountPath: "/home/service/astracerts"
+        - name: astra-ca-volume
+          mountPath: "/home/service/astraca"
+      volumes:
+      - name: allocator-w3-secret-volume
+        secret:
+          secretName: allocatorw3secret
+      - name: astra-ca-volume
+        secret:
+          secretName: astraca
+      - name: astra-tls-volume
+        secret:
+          secretName: astratls
 ---
 apiVersion: v1
 kind: Service

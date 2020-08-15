@@ -18,22 +18,15 @@ import (
 	"github.com/gocql/gocql"
 )
 
-//var apptoken string
-//TODO: differentiate between incorrect creds and no account matching the username
-//TODO: move adminusername and adminpassword to secrets
-var adminusername = "KVUser"
-var adminpassword = "KVPassword"
-
 var email string
 var count string
-
-//TODO:  move apiEndpoint to secrets
-var apiEndpoint = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.apps.astra.datastax.com/api/rest/v1/auth"
+var adminusername = os.Getenv("ADMIN_USERNAME")
+var adminpassword = os.Getenv("ADMIN_PASSWORD")
+var apiEndpoint = os.Getenv("API_ENDPOINT")
 var session *gocql.Session
 
 func init() {
-	//TODO:  move cqlshrcHost to secrets
-	var cqlshrcHost = "6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.db.astra.datastax.com"
+	var cqlshrcHost = os.Getenv("CQL_HOST")
 	var cqlshrcPort = "31770"
 
 	// set up the connection
@@ -47,7 +40,7 @@ func init() {
 		log.Println("Error with keyPath")
 		log.Println(err)
 	}
-	caPath, _ := filepath.Abs("/home/service/astraca/astraca")
+	caPath, err := filepath.Abs("/home/service/astraca/astraca")
 	if err != nil {
 		log.Println("Error with caPath")
 		log.Println(err)
@@ -71,8 +64,7 @@ func init() {
 
 	cluster := gocql.NewCluster(cqlshrcHost)
 	cluster.Timeout = time.Second * 30
-	//TODO: move Keyspace to secrets
-	cluster.Keyspace = "killrvideo"
+	cluster.Keyspace = os.Getenv("ASTRA_KEYSPACE")
 	cluster.Consistency = gocql.Quorum
 	cluster.SslOpts = &gocql.SslOptions{
 		Config:                 tlsConfig,
@@ -92,7 +84,7 @@ func init() {
 	} else {
 		log.Println("Session created successfully")
 	}
-	fmt.Println("Astra init done")
+	log.Println("Astra init done")
 }
 
 // A handler for the web server

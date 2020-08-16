@@ -25,68 +25,6 @@ var adminpassword = os.Getenv("adminpassword")
 var apiEndpoint = os.Getenv("astraapiendoint")
 var session *gocql.Session
 
-func init() {
-	var cqlshrcHost = os.Getenv("astracqlhost")
-	var cqlshrcPort = "31770"
-
-	// set up the connection
-	certPath, err := filepath.Abs("/home/service/astracerts/tls.crt")
-	if err != nil {
-		log.Println("Error with certPath")
-		log.Println(err)
-	}
-	keyPath, err := filepath.Abs("/home/service/astracerts/tls.key")
-	if err != nil {
-		log.Println("Error with keyPath")
-		log.Println(err)
-	}
-	caPath, err := filepath.Abs("/home/service/astraca/astraca")
-	if err != nil {
-		log.Println("Error with caPath")
-		log.Println(err)
-	}
-	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
-	if err != nil {
-		log.Println("Error loading cert key pair")
-		log.Println(err)
-	}
-	caCert, err := ioutil.ReadFile(caPath)
-	if err != nil {
-		log.Println("Error reading ca")
-		log.Println(err)
-	}
-	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCert)
-	tlsConfig := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		RootCAs:      caCertPool,
-	}
-
-	cluster := gocql.NewCluster(cqlshrcHost)
-	cluster.Timeout = time.Second * 30
-	cluster.Keyspace = os.Getenv("astrakeyspace")
-	cluster.Consistency = gocql.Quorum
-	cluster.SslOpts = &gocql.SslOptions{
-		Config:                 tlsConfig,
-		EnableHostVerification: false,
-	}
-	cluster.Authenticator = gocql.PasswordAuthenticator{
-		Username: adminusername,
-		Password: adminpassword,
-	}
-	cluster.Hosts = []string{cqlshrcHost + ":" + cqlshrcPort}
-
-	// create a session
-	session, err = cluster.CreateSession()
-	if err != nil {
-		log.Println("Error creating session")
-		log.Println(err)
-	} else {
-		log.Println("Session created successfully")
-	}
-	log.Println("Astra init done")
-}
-
 // A handler for the web server
 type handler func(w http.ResponseWriter, r *http.Request)
 
@@ -118,6 +56,12 @@ func main() {
 	} else {
 		log.SetOutput(file)
 		log.Println("Started logging")
+	}
+
+	err = configureAstra()
+	if err != nil {
+		log.Println("Error initializing db")
+		log.Println(err)
 	}
 
 	// defer closing the session
@@ -210,6 +154,69 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 		email, password, _ := r.BasicAuth()
 		err = writeToDB(authToken, requestID, email, password)
 	}
+}
+
+func configureAstra() error {
+	var cqlshrcHost = os.Getenv("astracqlhost")
+	var cqlshrcPort = "31770"
+
+	// set up the connection
+	certPath, err := filepath.Abs("/home/service/astracerts/tls.crt")
+	if err != nil {
+		log.Println("Error with certPath")
+		log.Println(err)
+	}
+	keyPath, err := filepath.Abs("/home/service/astracerts/tls.key")
+	if err != nil {
+		log.Println("Error with keyPath")
+		log.Println(err)
+	}
+	caPath, err := filepath.Abs("/home/service/astraca/astraca")
+	if err != nil {
+		log.Println("Error with caPath")
+		log.Println(err)
+	}
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		log.Println("Error loading cert key pair")
+		log.Println(err)
+	}
+	caCert, err := ioutil.ReadFile(caPath)
+	if err != nil {
+		log.Println("Error reading ca")
+		log.Println(err)
+	}
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		RootCAs:      caCertPool,
+	}
+
+	cluster := gocql.NewCluster(cqlshrcHost)
+	cluster.Timeout = time.Second * 30
+	cluster.Keyspace = os.Getenv("astrakeyspace")
+	cluster.Consistency = gocql.Quorum
+	cluster.SslOpts = &gocql.SslOptions{
+		Config:                 tlsConfig,
+		EnableHostVerification: false,
+	}
+	cluster.Authenticator = gocql.PasswordAuthenticator{
+		Username: adminusername,
+		Password: adminpassword,
+	}
+	cluster.Hosts = []string{cqlshrcHost + ":" + cqlshrcPort}
+
+	// create a session
+	session, err = cluster.CreateSession()
+	if err != nil {
+		log.Println("Error creating session")
+		log.Println(err)
+	} else {
+		log.Println("Session created successfully")
+	}
+	log.Println("Astra init done")
+	return err
 }
 
 // See if this username exists

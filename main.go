@@ -22,7 +22,7 @@ var email string
 var count string
 var adminusername = os.Getenv("adminusername")
 var adminpassword = os.Getenv("adminpassword")
-var apiEndpoint = os.Getenv("astraapiendoint")
+var apiEndpoint = os.Getenv("astraapiendpoint")
 var session *gocql.Session
 
 // A handler for the web server

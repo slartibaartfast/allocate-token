@@ -158,6 +158,8 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 
 func configureAstra() error {
 	var cqlshrcHost = os.Getenv("astracqlhost")
+	log.Println("astracqlhost: ", cqlshrcHost)
+	log.Println("astrakeyspace: ", os.Getenv("astrakeyspace"))
 	var cqlshrcPort = "31770"
 
 	// set up the connection
@@ -195,6 +197,7 @@ func configureAstra() error {
 
 	cluster := gocql.NewCluster(cqlshrcHost)
 	cluster.Timeout = time.Second * 30
+	cluster.ConnectTimeout = time.Second * 30
 	cluster.Keyspace = os.Getenv("astrakeyspace")
 	cluster.Consistency = gocql.Quorum
 	cluster.SslOpts = &gocql.SslOptions{

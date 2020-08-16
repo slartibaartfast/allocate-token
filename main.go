@@ -46,7 +46,7 @@ type result struct {
 //	Password string `json:"password"`
 //}
 
-// Main will set up an http server and three endpoints
+// Main will connect to astra, set up an http server and three endpoints
 func main() {
 	// Create or append to the log file
 	file, err := os.OpenFile("/home/service/logs/allocator-log.txt",
@@ -338,9 +338,10 @@ func fetchToken() (string, string, error) {
 // Write the request-id and token to the user credentials table
 //TODO: upsert the current time to date_creds_generated
 func writeToDB(authToken string, uuid string, email string, password string) error {
+	dt := time.Now()
 	if err := session.Query(
-		`UPDATE tribe_user_credentials SET app_token = ?, app_request_id = ? WHERE email = ?`,
-		authToken, uuid, email).Exec(); err != nil {
+		`UPDATE tribe_user_credentials SET app_token = ?, app_request_id = ?, date_creds_generated = ? WHERE email = ?`,
+		authToken, uuid, email, dt).Exec(); err != nil {
 		log.Println("Error updating tribe_user_credentials with token, uuid")
 		log.Println(err)
 	}

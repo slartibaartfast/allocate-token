@@ -20,13 +20,13 @@ import (
 
 var email string
 var count string
-var adminusername = os.Getenv("ADMIN_USERNAME")
-var adminpassword = os.Getenv("ADMIN_PASSWORD")
-var apiEndpoint = os.Getenv("API_ENDPOINT")
+var adminusername = os.Getenv("adminusername")
+var adminpassword = os.Getenv("adminpassword")
+var apiEndpoint = os.Getenv("astraapiendoint")
 var session *gocql.Session
 
 func init() {
-	var cqlshrcHost = os.Getenv("CQL_HOST")
+	var cqlshrcHost = os.Getenv("astracqlhost")
 	var cqlshrcPort = "31770"
 
 	// set up the connection
@@ -64,7 +64,7 @@ func init() {
 
 	cluster := gocql.NewCluster(cqlshrcHost)
 	cluster.Timeout = time.Second * 30
-	cluster.Keyspace = os.Getenv("ASTRA_KEYSPACE")
+	cluster.Keyspace = os.Getenv("astrakeyspace")
 	cluster.Consistency = gocql.Quorum
 	cluster.SslOpts = &gocql.SslOptions{
 		Config:                 tlsConfig,

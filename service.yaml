@@ -19,32 +19,15 @@ spec:
         image: docker.io/trota/token-allocator:0.0.33
         ports:
         - containerPort: 8000
-        env:
-        - name: ADMIN_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: astracreds
-              key: adminusername
-        - name: ADMIN_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: astracreds
-              key: adminpassword
-        - name: API_ENDPOINT
-          valueFrom:
-            secretKeyRef:
-              name: astraapiendpoint
-              key: astraapiendpoint
-        - name: CQL_HOST
-          valueFrom:
-            secretKeyRef:
-              name: astracqlhost
-              key: astracqlhost
-        - name: ASTRA_KEYSPACE
-          valueFrom:
-            secretKeyRef:
+        envFrom:
+        - secretRef:
+            name: admincreds
+        - secretRef:
+            name: astraapiendpoint
+        - secretRef:
+            name: astracqlhost
+        -secretRef:
               name: astrakeyspace
-              key: astrakeyspace
         volumeMounts:
         - name: allocator-w3-secret-volume
           mountPath: "/home/service/certs"

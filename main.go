@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gocql/gocql"
+	trumail "github.com/sdwolfe32/trumail/verifier"
 )
 
 var email string
@@ -73,8 +74,11 @@ func main() {
 	// Serve 200 status on /healthz for k8s health checks
 	http.HandleFunc("/healthz", handleHealthz)
 
-	// Return the Astra GraphQL token from Datastax
+	// Return the Astra authentication token from Datastax
 	http.HandleFunc("/authToken", getOnly(basicAuth(handleToken)))
+
+	// Register a new user
+	http.HandleFunc("/regUser", getOnly(basicAuth(handleNewUser)))
 
 	// Run the HTTP server using the bound certificate and key for TLS
 	if err := http.ListenAndServeTLS(":8000", "/home/service/certs/tls.crt", "/home/service/certs/tls.key", nil); err != nil {
@@ -152,7 +156,32 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// write the requestID to the caller's credentials table
 		email, password, _ := r.BasicAuth()
-		err = writeToDB(authToken, requestID, email, password)
+		err = updateUserCreds(authToken, requestID, email, password)
+	}
+}
+
+// Let /regUser create a new user record
+func handleNewUser(w http.ResponseWriter, r *http.Request) {
+	v := trumail.NewVerifier("posfoundations.com", "development@posfoundations.com")
+	log.Println(v.Verify("mrtomrota@gmail.com"))
+	if v = 200 {
+		authToken, requestID, err := fetchToken()
+		log.Println("handleNewUser authToken:", authToken)
+		log.Println("handleNewUser requestID:", requestID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(&result{authToken, requestID})
+		if err != nil {
+			log.Println("Error writing json from /handleNewUser")
+		} else {
+			// write the requestID to the caller's credentials table
+			email, password, _ := r.BasicAuth()
+			err = updateUserCreds(authToken, requestID, email, password)
+		}
+	} else {
+		log.Println("Invalid email address")
 	}
 }
 
@@ -336,8 +365,7 @@ func fetchToken() (string, string, error) {
 }
 
 // Write the request-id and token to the user credentials table
-//TODO: upsert the current time to date_creds_generated
-func writeToDB(authToken string, uuid string, email string, password string) error {
+func updateUserCreds(authToken string, uuid string, email string, password string) error {
 	if err := session.Query(
 		`UPDATE tribe_user_credentials SET app_token = ?, app_request_id = ?, date_creds_generated = toTimeStamp(now()) WHERE email = ?`,
 		authToken, uuid, email).Exec(); err != nil {

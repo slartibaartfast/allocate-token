@@ -139,4 +139,10 @@ wrong_username = wrong_username()
 assert wrong_username == 404, "Fail"
 print(" ")
 
+# test creating a new user with a valid email address
+#curl -k -u realemail@realdomain.com:ff9k3l2 https://localhost:8000/newUser
+
+#test creating a new user with an invalid email address
+#curl -k -u fakeemail@realdomain.com:ff9k3l2 https://localhost:8000/newUser
+
 print("Tests completed")

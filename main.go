@@ -164,7 +164,7 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 func handleNewUser(w http.ResponseWriter, r *http.Request) {
 	v := trumail.NewVerifier("posfoundations.com", "development@posfoundations.com")
 	log.Println(v.Verify("mrtomrota@gmail.com"))
-	if v = 200 {
+	if v == v { //TODO: remove placeholder
 		authToken, requestID, err := fetchToken()
 		log.Println("handleNewUser authToken:", authToken)
 		log.Println("handleNewUser requestID:", requestID)

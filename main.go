@@ -78,7 +78,7 @@ func main() {
 	http.HandleFunc("/authToken", getOnly(basicAuth(handleToken)))
 
 	// Register a new user
-	http.HandleFunc("/regUser", getOnly(basicAuth(handleNewUser)))
+	http.HandleFunc("/regUser", getOnly(handleNewUser))
 
 	// Run the HTTP server using the bound certificate and key for TLS
 	if err := http.ListenAndServeTLS(":8000", "/home/service/certs/tls.crt", "/home/service/certs/tls.key", nil); err != nil {
@@ -162,8 +162,9 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 
 // Let /regUser create a new user record
 func handleNewUser(w http.ResponseWriter, r *http.Request) {
+	email, password, _ := r.BasicAuth()
 	v := trumail.NewVerifier("posfoundations.com", "development@posfoundations.com")
-	log.Println(v.Verify("mrtomrota@gmail.com"))
+	log.Println(v.Verify(email))
 	if v == v { //TODO: remove placeholder
 		authToken, requestID, err := fetchToken()
 		log.Println("handleNewUser authToken:", authToken)
@@ -177,7 +178,6 @@ func handleNewUser(w http.ResponseWriter, r *http.Request) {
 			log.Println("Error writing json from /handleNewUser")
 		} else {
 			// write the requestID to the caller's credentials table
-			email, password, _ := r.BasicAuth()
 			err = updateUserCreds(authToken, requestID, email, password)
 		}
 	} else {

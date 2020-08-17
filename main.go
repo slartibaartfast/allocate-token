@@ -164,8 +164,13 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 func handleNewUser(w http.ResponseWriter, r *http.Request) {
 	email, password, _ := r.BasicAuth()
 	v := trumail.NewVerifier("posfoundations.com", "development@posfoundations.com")
+	lookup, err := v.Verify(email)
+	log.Println("lookup.ValidFormat: ", lookup.ValidFormat)
 	log.Println(v.Verify(email))
-	if v == v { //TODO: remove placeholder
+	if err != nil {
+		log.Println("Error verifying email")
+		log.Println(err)
+	} else {
 		authToken, requestID, err := fetchToken()
 		log.Println("handleNewUser authToken:", authToken)
 		log.Println("handleNewUser requestID:", requestID)
@@ -180,8 +185,6 @@ func handleNewUser(w http.ResponseWriter, r *http.Request) {
 			// write the requestID to the caller's credentials table
 			err = updateUserCreds(authToken, requestID, email, password)
 		}
-	} else {
-		log.Println("Invalid email address")
 	}
 }
 

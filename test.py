@@ -9,15 +9,17 @@ import uuid
 # disable ssl warnings until we have proper certs
 urllib3.disable_warnings()
 
+qUrl = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.apps.astra.datastax.com/api/graphql"
+
 #curl -k -u dogdogalina@mrdogdogalina.com:ff9k3l2 https://localhost:8000/
 #r = requests.get('https://localhost:8000/', verify=False)
 #print(r.content)
 
 # retrieve a token and uuid from our service
-def get_creds():
+def get_creds(email, password):
     #print("Getting auth token and requestID values...")
     r = requests.get('https://localhost:8000/authToken',
-        auth=HTTPBasicAuth('dogdogalina@mrdogdogalina.com', 'ff9k3l2'),
+        auth=HTTPBasicAuth(email, password),
         verify=False)
 
     jsonr = r.json()
@@ -31,13 +33,13 @@ def get_creds():
 
 
 # Use our token and uuid to query Astra
-def get_user(token, requestID):
+def get_user(token, requestID, userId):
     qHeaders = {'accept': '*/*'}
     qHeaders['content-type'] = 'application/json'
     qHeaders['x-cassandra-request-id'] = requestID
     qHeaders['x-cassandra-token'] = token
 
-    url = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.apps.astra.datastax.com/api/graphql"
+    url = qUrl
 
     q = """
     query {
@@ -71,7 +73,7 @@ def get_user_credentials(token, requestID):
     qHeaders['x-cassandra-request-id'] = requestID
     qHeaders['x-cassandra-token'] = token
 
-    url = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.apps.astra.datastax.com/api/graphql"
+    url = qUrl
 
     q = """
     query {
@@ -109,9 +111,21 @@ def wrong_username():
 
     return r.status_code
 
+
+# Create a new user
+def create_new_user(email, password):
+    r = requests.get('https://localhost:8000/regUser',
+        auth=HTTPBasicAuth(email, password),
+        verify=False)
+
+    print("status code: ", r.status_code)
+
+    return r.status_code
+
+
 # get a token and requestID using our go service
 print("Testing token and uuid retrieval...")
-token, requestID = get_creds()
+token, requestID = get_creds('dogdogalina@mrdogdogalina.com', 'ff9k3l2'),)
 assert token == str(uuid.UUID(token)), "Fail"
 assert requestID == str(uuid.UUID(requestID)), "Fail"
 print(" ")
@@ -140,9 +154,13 @@ assert wrong_username == 404, "Fail"
 print(" ")
 
 # test creating a new user with a valid email address
-#curl -k -u realemail@realdomain.com:ff9k3l2 https://localhost:8000/newUser
+#curl -k -u realemail@realdomain.com:Password https://localhost:8000/regUser
+print("Testing creating a user with a valid email address")
+new_user = create_new_user('mrtomrota@gmail.com', 'Password')
 
 #test creating a new user with an invalid email address
-#curl -k -u fakeemail@realdomain.com:ff9k3l2 https://localhost:8000/newUser
+#curl -k -u idontexist@frankrizo.com:Password https://localhost:8000/regUser
+new_user = create_new_user('idontexists@frankrizo.com', 'Password')
+
 
 print("Tests completed")

@@ -13,7 +13,6 @@ spec:
       targetPort: 8000
 ---
 apiVersion: apps/v1
-#apiVersion: extension/v1beta
 kind: Deployment
 metadata:
   name: token-allocator
@@ -31,7 +30,7 @@ spec:
     spec:
       containers:
       - name: token-allocator
-        image: docker.io/trota/token-allocator:0.0.42
+        image: docker.io/trota/token-allocator:0.1.0
         ports:
         - containerPort: 8000
         envFrom:

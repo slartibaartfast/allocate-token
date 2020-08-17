@@ -9,13 +9,14 @@ import uuid
 # disable ssl warnings until we have proper certs
 urllib3.disable_warnings()
 
+#qUrl = Your Datastax GraphQl api endpoint
 qUrl = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.apps.astra.datastax.com/api/graphql"
 
 #curl -k -u dogdogalina@mrdogdogalina.com:ff9k3l2 https://localhost:8000/
 #r = requests.get('https://localhost:8000/', verify=False)
 #print(r.content)
 
-# retrieve a token and uuid from our service
+# retrieve a token and uuid from our service's authToken endpoint
 def get_creds(email, password):
     #print("Getting auth token and requestID values...")
     r = requests.get('https://localhost:8000/authToken',
@@ -33,7 +34,7 @@ def get_creds(email, password):
 
 
 # Use our token and uuid to query Astra
-def get_user(token, requestID, userId):
+def get_user(token, requestID):
     qHeaders = {'accept': '*/*'}
     qHeaders['content-type'] = 'application/json'
     qHeaders['x-cassandra-request-id'] = requestID
@@ -102,9 +103,9 @@ def get_user_credentials(token, requestID):
 
 
 # Attempt to retrieve credentials for a user that does not exist in our db
-def wrong_username():
+def wrong_username(username, password):
     r = requests.get('https://localhost:8000/authToken',
-        auth=HTTPBasicAuth('idontexist@frankrizo.com', 'ff9k3l2'),
+        auth=HTTPBasicAuth(username, password),
         verify=False)
 
     print("status code: ", r.status_code)
@@ -125,7 +126,7 @@ def create_new_user(email, password):
 
 # get a token and requestID using our go service
 print("Testing token and uuid retrieval...")
-token, requestID = get_creds('dogdogalina@mrdogdogalina.com', 'ff9k3l2'),)
+token, requestID = get_creds('dogdogalina@mrdogdogalina.com', 'ff9k3l2')
 assert token == str(uuid.UUID(token)), "Fail"
 assert requestID == str(uuid.UUID(requestID)), "Fail"
 print(" ")
@@ -149,7 +150,7 @@ print(" ")
 
 # test if we identify nonexistant user
 print("Testing that submitting an invalid username returns a status of 404...")
-wrong_username = wrong_username()
+wrong_username = wrong_username('idontexist@frankrizo.com', 'ff9k3l2')
 assert wrong_username == 404, "Fail"
 print(" ")
 
@@ -157,10 +158,14 @@ print(" ")
 #curl -k -u realemail@realdomain.com:Password https://localhost:8000/regUser
 print("Testing creating a user with a valid email address")
 new_user = create_new_user('mrtomrota@gmail.com', 'Password')
+assert wrong_username == 200, "Fail"
+print(" ")
 
 #test creating a new user with an invalid email address
 #curl -k -u idontexist@frankrizo.com:Password https://localhost:8000/regUser
+print("Testing creating a user with an invalid email address")
 new_user = create_new_user('idontexists@frankrizo.com', 'Password')
-
+assert new_user == 200, "Fail"
+print(" ")
 
 print("Tests completed")

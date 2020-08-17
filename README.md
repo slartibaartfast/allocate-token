@@ -50,7 +50,7 @@ writing new private key to '/tmp/tls.key'
 ```
 
 ### Download the secure connect bundle for your Astra database
-On the Summary page of your [Astra](astra.datastax.com) database instance there is a link to download this bundle.  It has several files we will make secrets with.
+On the Summary page of the [Astra](astra.datastax.com) database instance there is a link to download this bundle.  It has several files we will make secrets with.
 Download the file and unpackage it in a convenient directory.
 
 
@@ -108,7 +108,7 @@ astracqlhost          Opaque                      1      26s
 astracreds            Opaque                      2      25s
 astrakeyspace         Opaque                      1      24s
 astratls              kubernetes.io/tls           2      23s
-...
+```
 
 These secrets are referenced in service.yaml and in main.go.
 

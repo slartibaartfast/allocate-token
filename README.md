@@ -1,7 +1,6 @@
 # A token allocator service
 
-This is a service that is for creating and securing access tokens for apps to use with Astra and the Astra APIs.  It is packaged in a Docker container, and run in a kubernetes cluster.  It intends
-to circumvent building connection credentials into apk or similar files which are distributed to end users by issueing and storing connection tokens and uuids to individual app users.
+This is a service that is for creating and securing access tokens for apps to use with Astra and the Astra APIs.  It is packaged in a Docker container, and run in a kubernetes cluster.  It intends to circumvent building Astra connection credentials into apk or similar files which are distributed to end users by issueing and storing connection tokens and uuids to individual app users.
 
 Prerequisites:
   1) An [Astra](https://astra.datastax.com/register) database
@@ -9,6 +8,7 @@ Prerequisites:
   3) Access to a [Kubernetes](https://kubernetes.io/) cluster, or a local installation of [Kind](https://kubernetes.io/docs/setup/learning-environment/kind/), or [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/)
   4) An [OpenSSL](https://www.openssl.org/) toolkit locally or in Docker
   5) (Optional) A modern version of [Python](https://www.python.org/), for running GraphQl test queries
+
 
 ### Install tables and sample data in an Astra keyspace
 Two .cql scripts are included to create a set of tables used by the not-yet-complete geolocation sharing mobile app [Tribe](http://tribe.posfoundations.com/).
@@ -30,6 +30,7 @@ and add the kind patch
 kubectl patch daemonsets -n projectcontour envoy -p '{"spec":{"template":{"spec":{"nodeSelector":{"ingress-ready":"true"},"tolerations":[{"key":"node-role.kubernetes.io/master","operator":"Equal","effect":"NoSchedule"}]}}}}'
 ```
 
+
 ### Add secrets to kubernetes...
 Let's keep security in mind from the beginning by creating a certificate, key and secret for the web server.  We will also create secrets used to connect to an Astra database.  And then we will create several more secrets to hold sensitive information in environmental variables.
 
@@ -48,6 +49,7 @@ Generating a 2048 bit RSA private key
 writing new private key to '/tmp/tls.key'
 -----
 ```
+
 
 ### Download the secure connect bundle for your Astra database
 On the Summary page of the [Astra](astra.datastax.com) database instance there is a link to download this bundle.  It has several files we will make secrets with.
@@ -112,10 +114,11 @@ astratls              kubernetes.io/tls           2      23s
 
 These secrets are referenced in service.yaml and in main.go.
 
-## Building the service
+
+### Building the service
 Now that the environment is set up, we can compile our code.  We will use a Dockerfile that defines a two stage build which fetches the code we need from this repo, builds the executable, and copies it to a smaller alpine image.
 The code in main.go uses the gocql package to create a connection to the database, the trumail verifier package to validate email addresses, and runs a web server with endpoints for working with user data.
-In the below command, replace trota with your repository username, and tag it whatever you like.  In the Deployment section (spec.template.spec.containers[0].image) of the service.yaml file, enter the name of the image built by running...
+In the below command, replace trota with your repository username, and tag it whatever you like.  In the Deployment section (spec.template.spec.containers[0].image) of the service.yaml file, enter the name of the image that is built when this is run...
 ```
 docker build -t trota/token-allocator:0.1.0 .
 ```
@@ -125,7 +128,8 @@ After it's finished building, push it to your repository...
 docker push trota/token-allocator:0.1.0
 ```
 
-###Create a Pod with the service.
+
+### Create a Pod with the service.
 Change directory to the location of your local copy of this repository and run...
 ```
 kubectl apply -f service.yaml
@@ -136,6 +140,33 @@ When running in kind, Forward the port 8000
 kubectl port-forward service/token-allocator-service 8000:8000
 
 ```
+
+
+### Get the Pod
+Get a list of pods
+```
+kubectl get pods
+```
+should return something like
+```
+NAME                               READY   STATUS    RESTARTS   AGE
+token-allocator-58c4cb5d68-rf78v   1/1     Running   0          3h53m
+```
+
+
+### Connect to the pod
+Log into the pod and look around, perhaps at the log in /home/service/logs.  In the below command, replace *token-allocator-58c4cb5d68-rf78v* with the actual pod name.
+```
+kubectl exec --stdin --tty token-allocator-58c4cb5d68-rf78v /bin/ash
+```
+Change directory to the service's logs directory and look at the log
+```
+cd home/service/logs
+ls
+cat allocator-log.txt
+```
+Looking empty?  There will be more data after testing the endpoints.
+
 
 ### Test the endpoints
 Send a curl request to the endpoint to fetch a token and uuid:

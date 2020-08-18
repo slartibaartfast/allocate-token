@@ -187,7 +187,7 @@ func handleNewUser(w http.ResponseWriter, r *http.Request) {
 			log.Println("Error writing json from /handleNewUser")
 		} else {
 			// write the requestID to the caller's credentials table
-			err = updateUserCreds(appID, authToken, requestID, email, password)
+			err = updateUserCreds(authToken, requestID, email, password, appID)
 		}
 	}
 }
@@ -372,10 +372,10 @@ func fetchToken() (string, string, error) {
 }
 
 // Write the request-id and token to the user credentials table
-func updateUserCreds(appID string, authToken string, uuid string, email string, password string) error {
+func updateUserCreds(authToken string, uuid string, email string, password string, appID string) error {
 	if err := session.Query(
-		`UPDATE tribe_user_credentials SET app_id = ?, app_token = ?, app_request_id = ?, date_creds_generated = toTimeStamp(now()) WHERE email = ?`,
-		appID, authToken, uuid, email).Exec(); err != nil {
+		`UPDATE tribe_user_credentials SET app_token = ?, app_request_id = ?, date_creds_generated = toTimeStamp(now()) WHERE email = ? and app_id = ?`,
+		authToken, uuid, email, appID).Exec(); err != nil {
 		log.Println("Error updating tribe_user_credentials with token, uuid")
 		log.Println(err)
 	}

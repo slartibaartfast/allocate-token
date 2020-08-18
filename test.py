@@ -12,15 +12,20 @@ urllib3.disable_warnings()
 #qUrl = Your Datastax GraphQl api endpoint
 qUrl = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.apps.astra.datastax.com/api/graphql"
 
+# The app_id that was created by the insert statemnt in sample_data.cql
+appID = '9edd2f70-b50b-4c01-b216-701471889ccd'
+
 #curl -k -u dogdogalina@mrdogdogalina.com:ff9k3l2 https://localhost:8000/
 #r = requests.get('https://localhost:8000/', verify=False)
 #print(r.content)
 
 # retrieve a token and uuid from our service's authToken endpoint
-def get_creds(email, password):
+def get_creds(email, password, appID):
     #print("Getting auth token and requestID values...")
+    headers = {'x-app-id': appID}
     r = requests.get('https://localhost:8000/authToken',
         auth=HTTPBasicAuth(email, password),
+        headers=headers,
         verify=False)
 
     jsonr = r.json()
@@ -34,11 +39,13 @@ def get_creds(email, password):
 
 
 # Use our token and uuid to query Astra
-def get_user(token, requestID):
+# TODO: pass userID as a variable
+def get_user(token, requestID, appID):
     qHeaders = {'accept': '*/*'}
     qHeaders['content-type'] = 'application/json'
     qHeaders['x-cassandra-request-id'] = requestID
     qHeaders['x-cassandra-token'] = token
+    qHeaders['x-app-id'] = appID
 
     url = qUrl
 
@@ -68,11 +75,13 @@ def get_user(token, requestID):
 
 
 # Check to see if our service upserted the token and uuid into the user credentials table
-def get_user_credentials(token, requestID):
+# TODO: pass email as a variable
+def get_user_credentials(token, requestID, appID):
     qHeaders = {'accept': '*/*'}
     qHeaders['content-type'] = 'application/json'
     qHeaders['x-cassandra-request-id'] = requestID
     qHeaders['x-cassandra-token'] = token
+    qHeaders['x-app-id'] = appID
 
     url = qUrl
 
@@ -103,8 +112,10 @@ def get_user_credentials(token, requestID):
 
 
 # Attempt to retrieve credentials for a user that does not exist in our db
-def wrong_username(username, password):
+def wrong_username(username, password, appID):
+    headers = {'x-app-id': appID}
     r = requests.get('https://localhost:8000/authToken',
+        headers=headers,
         auth=HTTPBasicAuth(username, password),
         verify=False)
 
@@ -114,8 +125,10 @@ def wrong_username(username, password):
 
 
 # Create a new user
-def create_new_user(email, password):
+def create_new_user(email, password, appID):
+    headers = {'x-app-id': appID}
     r = requests.get('https://localhost:8000/regUser',
+        headers=headers,
         auth=HTTPBasicAuth(email, password),
         verify=False)
 
@@ -126,14 +139,14 @@ def create_new_user(email, password):
 
 # get a token and requestID using our go service
 print("Testing token and uuid retrieval...")
-token, requestID = get_creds('dogdogalina@mrdogdogalina.com', 'ff9k3l2')
+token, requestID = get_creds('dogdogalina@mrdogdogalina.com', 'ff9k3l2', appID)
 assert token == str(uuid.UUID(token)), "Fail"
 assert requestID == str(uuid.UUID(requestID)), "Fail"
 print(" ")
 
 # query the Astra db using the token and uuid
 print("Testing that the token and uuid can be used to query Astra...")
-user = get_user(token, requestID)
+user = get_user(token, requestID, appID)
 user = user.json()
 assert user['data']['tribeUsers']['values'][0]['email'] == "dogdogalina@mrdogdogalina.com", "Fail"
 print(" ")
@@ -142,7 +155,7 @@ print(" ")
 # table with the new token
 # assert that tribe_user_credentials.app_token equals the variable named token
 print("Testing that we upserted the user credentials table with the token and uuid...")
-user_creds = get_user_credentials(token, requestID)
+user_creds = get_user_credentials(token, requestID, appID)
 user_creds = user_creds.json()
 assert user_creds['data']['tribeUserCredentials']['values'][0]['appToken'] == str(token), "Fail"
 assert user_creds['data']['tribeUserCredentials']['values'][0]['appRequestId'] == str(requestID), "Fail"
@@ -150,22 +163,29 @@ print(" ")
 
 # test if we identify nonexistant user
 print("Testing that submitting an invalid username returns a status of 404...")
-wrong_username = wrong_username('idontexist@frankrizo.com', 'ff9k3l2')
+wrong_username = wrong_username('idontexist@frankrizo.com', 'ff9k3l2', appID)
 assert wrong_username == 404, "Fail"
 print(" ")
 
 # test creating a new user with a valid email address
 #curl -k -u realemail@realdomain.com:Password https://localhost:8000/regUser
 print("Testing creating a user with a valid email address")
-new_user = create_new_user('mrtomrota@gmail.com', 'Password')
+new_user = create_new_user('mrtomrota@gmail.com', 'Password', appID)
 assert wrong_username == 200, "Fail"
 print(" ")
 
 #test creating a new user with an invalid email address
 #curl -k -u idontexist@frankrizo.com:Password https://localhost:8000/regUser
 print("Testing creating a user with an invalid email address")
-new_user = create_new_user('idontexists@frankrizo.com', 'Password')
+new_user = create_new_user('idontexists@frankrizo.com', 'Password', appID)
 assert new_user == 200, "Fail"
+print(" ")
+
+# get a token and requestID using our go service
+print("Testing token and uuid retrieval without appID...")
+token, requestID = get_creds('dogdogalina@mrdogdogalina.com', 'ff9k3l2')
+print("get_creds no appID token: ", token)
+print("get_creds no appID requestID: ", requestID)
 print(" ")
 
 print("Tests completed")

@@ -103,16 +103,18 @@ func getOnly(h handler) handler {
 func basicAuth(pass handler) handler {
 	return func(w http.ResponseWriter, r *http.Request) {
 		username, password, _ := r.BasicAuth()
+		appID := r.Header.Get("x-app-id")
 		log.Println("basic auth username: ", username)
 		log.Println("basic auth password: ", password)
+		log.Println("basic auth appID: ", appID)
 		// check to see if the user exists
-		count := checkUsername(username)
+		count := checkUsername(appID, username)
 		if count != 1 {
 			http.Error(w, "nonexistant username", http.StatusNotFound)
 			return
 		}
 		// validate the username and password
-		err := validateUser(username, password)
+		err := validateUser(appID, username, password)
 		if err != nil {
 			http.Error(w, "authorization failed", http.StatusUnauthorized)
 			return
@@ -156,13 +158,15 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// write the requestID to the caller's credentials table
 		email, password, _ := r.BasicAuth()
-		err = updateUserCreds(authToken, requestID, email, password)
+		appID := r.Header.Get("AppID")
+		err = updateUserCreds(appID, authToken, requestID, email, password)
 	}
 }
 
 // Let /regUser create a new user record
 func handleNewUser(w http.ResponseWriter, r *http.Request) {
 	email, password, _ := r.BasicAuth()
+	appID := r.Header.Get("x-app-id")
 	v := trumail.NewVerifier("posfoundations.com", "development@posfoundations.com")
 	lookup, err := v.Verify(email)
 	log.Println("lookup.ValidFormat: ", lookup.ValidFormat)
@@ -183,7 +187,7 @@ func handleNewUser(w http.ResponseWriter, r *http.Request) {
 			log.Println("Error writing json from /handleNewUser")
 		} else {
 			// write the requestID to the caller's credentials table
-			err = updateUserCreds(authToken, requestID, email, password)
+			err = updateUserCreds(appID, authToken, requestID, email, password)
 		}
 	}
 }
@@ -255,11 +259,11 @@ func configureAstra() error {
 }
 
 // See if this username exists
-func checkUsername(username string) int {
+func checkUsername(appID string, username string) int {
 	var count int
 	if err := session.Query(
-		`SELECT count(*) FROM tribe_user_credentials WHERE email = ?`,
-		username).Scan(&count); err != nil {
+		`SELECT count(*) FROM tribe_user_credentials WHERE app_id = ? and email = ?`,
+		appID, username).Scan(&count); err != nil {
 		log.Println("Error confirming existance of user")
 		log.Println(err)
 		return 0
@@ -269,14 +273,14 @@ func checkUsername(username string) int {
 }
 
 // Validate the received user credentials against the stored user credentials
-func validateUser(username string, password string) error {
+func validateUser(appID, username string, password string) error {
 	log.Println("begining of validateUser")
 	var userID string
 
 	// Select a user with the supplied credentials
 	if err := session.Query(
-		`SELECT user_id FROM tribe_user_credentials WHERE email = ? and password = ?`,
-		username, password).Scan(&userID); err != nil {
+		`SELECT user_id FROM tribe_user_credentials WHERE app_id = ? and email = ? and password = ?`,
+		appID, username, password).Scan(&userID); err != nil {
 		log.Println("Error validating user")
 		log.Println(err)
 		return err
@@ -368,10 +372,10 @@ func fetchToken() (string, string, error) {
 }
 
 // Write the request-id and token to the user credentials table
-func updateUserCreds(authToken string, uuid string, email string, password string) error {
+func updateUserCreds(appID string, authToken string, uuid string, email string, password string) error {
 	if err := session.Query(
-		`UPDATE tribe_user_credentials SET app_token = ?, app_request_id = ?, date_creds_generated = toTimeStamp(now()) WHERE email = ?`,
-		authToken, uuid, email).Exec(); err != nil {
+		`UPDATE tribe_user_credentials SET app_id = ?, app_token = ?, app_request_id = ?, date_creds_generated = toTimeStamp(now()) WHERE email = ?`,
+		appID, authToken, uuid, email).Exec(); err != nil {
 		log.Println("Error updating tribe_user_credentials with token, uuid")
 		log.Println(err)
 	}

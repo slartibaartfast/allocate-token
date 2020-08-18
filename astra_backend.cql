@@ -14,6 +14,12 @@ CREATE TYPE IF NOT EXISTS tribe_geo_point_udt (
     longitude double
 );
 
+CREATE TABLE IF NOT EXISTS keyspace_apps (
+    app_id uuid PRIMARY KEY,
+    app_name text,
+    date_created timestamp
+);
+
 CREATE TABLE IF NOT EXISTS tribe_users (
     user_id uuid PRIMARY KEY,
     user_name text,
@@ -24,16 +30,14 @@ CREATE TABLE IF NOT EXISTS tribe_users (
 
 CREATE TABLE IF NOT EXISTS tribe_user_credentials (
     email text,
+    app_id uuid,
     user_id uuid,
     password text,
     app_token text,
     app_request_id uuid,
     date_creds_generated timestamp,
-    PRIMARY KEY (email)
-);
-
-CREATE INDEX tribe_user_credentials_password
-  ON tribe_user_credentials (password);
+    PRIMARY KEY ((email, app_id, password), user_id))
+WITH CLUSTERING ORDER BY (user_id ASC);
 
 CREATE INDEX tribe_user_credentials_user_id
   ON tribe_user_credentials (user_id);

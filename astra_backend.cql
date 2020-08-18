@@ -36,11 +36,11 @@ CREATE TABLE IF NOT EXISTS tribe_user_credentials (
     app_token text,
     app_request_id uuid,
     date_creds_generated timestamp,
-    PRIMARY KEY ((email, app_id, password), user_id))
-WITH CLUSTERING ORDER BY (user_id ASC);
+    PRIMARY KEY ((email, app_id, password))
+);
 
-CREATE INDEX tribe_user_credentials_user_id
-  ON tribe_user_credentials (user_id);
+/* CREATE INDEX tribe_user_credentials_user_id */
+/*  ON tribe_user_credentials (user_id); */
 
 /* store the last known location of a user */
 /* TODO: make a partition key for user and month */

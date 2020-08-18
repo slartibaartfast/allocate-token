@@ -159,7 +159,7 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 		// write the requestID to the caller's credentials table
 		email, password, _ := r.BasicAuth()
 		appID := r.Header.Get("AppID")
-		err = updateUserCreds(appID, authToken, requestID, email, password)
+		err = updateUserCreds(authToken, requestID, email, password, appID)
 	}
 }
 

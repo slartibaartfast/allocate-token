@@ -108,7 +108,7 @@ func basicAuth(pass handler) handler {
 		log.Println("basic auth password: ", password)
 		log.Println("basic auth appID: ", appID)
 		// check to see if the user exists
-		count := checkUsername(appID, username)
+		count := checkUsername(appID, username, password)
 		if count != 1 {
 			http.Error(w, "nonexistant username", http.StatusNotFound)
 			return
@@ -259,11 +259,11 @@ func configureAstra() error {
 }
 
 // See if this username exists
-func checkUsername(appID string, username string) int {
+func checkUsername(appID string, username string, password string) int {
 	var count int
 	if err := session.Query(
-		`SELECT count(*) FROM tribe_user_credentials WHERE app_id = ? and email = ?`,
-		appID, username).Scan(&count); err != nil {
+		`SELECT count(*) FROM tribe_user_credentials WHERE app_id = ? and email = ? and password = ?`,
+		appID, username, password).Scan(&count); err != nil {
 		log.Println("Error confirming existance of user")
 		log.Println(err)
 		return 0

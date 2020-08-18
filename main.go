@@ -320,8 +320,8 @@ func fetchToken() (string, string, error) {
 		log.Println("Error: ", err)
 	} else {
 		log.Println("Request created successfully")
-		log.Println("Request apiEndpoint: ", apiEndpoint)
-		log.Println("Request jsonData: ", jsonData)
+		//log.Println("Request apiEndpoint: ", apiEndpoint)
+		//log.Println("Request jsonData: ", jsonData)
 	}
 	req.Header.Set("accept", "*/*")
 	req.Header.Set("content-type", "application/json")
@@ -354,8 +354,8 @@ func fetchToken() (string, string, error) {
 		log.Println("Error: ", err)
 	}
 
-	log.Println("response Status:", resp.Status)
-	log.Println("response Headers:", resp.Header)
+	//log.Println("response Status:", resp.Status)
+	//log.Println("response Headers:", resp.Header)
 	body, _ := ioutil.ReadAll(resp.Body)
 	log.Println("response Body:", string(body))
 
@@ -373,6 +373,11 @@ func fetchToken() (string, string, error) {
 
 // Write the request-id and token to the user credentials table
 func updateUserCreds(authToken string, uuid string, email string, password string, appID string) error {
+	log.Println("updateUserCreds authToken: ", authToken)
+	log.Println("updateUserCreds uuid: ", uuid)
+	log.Println("updateUserCreds email: ", email)
+	log.Println("updateUserCreds password: ", password)
+	log.Println("updateUserCreds appID: ", appID)
 	if err := session.Query(
 		`UPDATE tribe_user_credentials SET app_token = ?, app_request_id = ?, date_creds_generated = toTimeStamp(now()) WHERE email = ? and password = ? and app_id = ?`,
 		authToken, uuid, email, password, appID).Exec(); err != nil {

@@ -374,8 +374,8 @@ func fetchToken() (string, string, error) {
 // Write the request-id and token to the user credentials table
 func updateUserCreds(authToken string, uuid string, email string, password string, appID string) error {
 	if err := session.Query(
-		`UPDATE tribe_user_credentials SET app_token = ?, app_request_id = ?, date_creds_generated = toTimeStamp(now()) WHERE email = ? and app_id = ?`,
-		authToken, uuid, email, appID).Exec(); err != nil {
+		`UPDATE tribe_user_credentials SET app_token = ?, app_request_id = ?, date_creds_generated = toTimeStamp(now()) WHERE email = ? and password = ? and app_id = ?`,
+		authToken, uuid, email, password, appID).Exec(); err != nil {
 		log.Println("Error updating tribe_user_credentials with token, uuid")
 		log.Println(err)
 	}

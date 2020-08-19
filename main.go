@@ -19,6 +19,12 @@ import (
 	trumail "github.com/sdwolfe32/trumail/verifier"
 )
 
+// This implements a service for use with Datastax Astra which tries to make
+// issueing authorization tokens to app users a little more secure
+
+// TODO: Move the user credentials table to it's own keyspace, and create
+// a separate connection for working with that keyspace
+
 var email string
 var count string
 var adminusername = os.Getenv("adminusername")
@@ -164,6 +170,7 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 }
 
 // Let /regUser create a new user record
+//TODO: pass NewVerifier variables
 func handleNewUser(w http.ResponseWriter, r *http.Request) {
 	email, password, _ := r.BasicAuth()
 	appID := r.Header.Get("x-app-id")
@@ -372,6 +379,7 @@ func fetchToken() (string, string, error) {
 }
 
 // Write the request-id and token to the user credentials table
+// TODO: this should also insert into tribe_users.last_login
 func updateUserCreds(authToken string, uuid string, email string, password string, appID string) error {
 	log.Println("updateUserCreds authToken: ", authToken)
 	log.Println("updateUserCreds uuid: ", uuid)

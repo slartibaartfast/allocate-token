@@ -1,12 +1,30 @@
 /* script to create a backend for the tribe app using Astra */
 /* https://astra.datastax.com/
 
+/* TODO: create a role for app users that has less authority */
 
-CREATE KEYSPACE IF NOT EXISTS killrvideo
+CREATE KEYSPACE IF NOT EXISTS app_manager
     WITH replication = {'class': 'NetworkTopologyStrategy', 'caas-dc': '1'}
     AND durable_writes = true;
 
-USE killrvideo;
+USE app_manager;
+
+CREATE TABLE IF NOT EXISTS tribe_user_credentials (
+    email text,
+    app_id uuid,
+    user_id uuid,
+    password text,
+    app_token text,
+    app_request_id uuid,
+    date_creds_generated timestamp,
+    PRIMARY KEY ((email, app_id, password))
+);
+
+CREATE KEYSPACE IF NOT EXISTS tribe
+    WITH replication = {'class': 'NetworkTopologyStrategy', 'caas-dc': '1'}
+    AND durable_writes = true;
+
+USE tribe;
 
 /* A user defined datatype to store latitude and longitude coordinates */
 CREATE TYPE IF NOT EXISTS tribe_geo_point_udt (
@@ -28,16 +46,6 @@ CREATE TABLE IF NOT EXISTS tribe_users (
     last_login timestamp
 );
 
-CREATE TABLE IF NOT EXISTS tribe_user_credentials (
-    email text,
-    app_id uuid,
-    user_id uuid,
-    password text,
-    app_token text,
-    app_request_id uuid,
-    date_creds_generated timestamp,
-    PRIMARY KEY ((email, app_id, password))
-);
 
 /* CREATE INDEX tribe_user_credentials_user_id */
 /*  ON tribe_user_credentials (user_id); */

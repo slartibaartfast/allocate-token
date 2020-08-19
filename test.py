@@ -15,6 +15,8 @@ qUrl = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.apps.astra.datasta
 # The app_id that was created by the insert statemnt in sample_data.cql
 appID = '9edd2f70-b50b-4c01-b216-701471889ccd'
 
+userID = '00000000-0000-0000-0000-000000000000'
+
 #curl -k -u dogdogalina@mrdogdogalina.com:ff9k3l2 https://localhost:8000/
 #r = requests.get('https://localhost:8000/', verify=False)
 #print(r.content)
@@ -40,15 +42,16 @@ def get_creds(email, password, appID):
 
 # Use our token and uuid to query Astra
 # TODO: pass userID as a variable
-def get_user(token, requestID, appID):
+#tribeUsers(value: { userId: "00000000-0000-0000-0000-000000000000" }) {
+def get_user(token, requestID, userID):
     qHeaders = {'accept': '*/*'}
     qHeaders['content-type'] = 'application/json'
     qHeaders['x-cassandra-request-id'] = requestID
     qHeaders['x-cassandra-token'] = token
-    qHeaders['x-app-id'] = appID
+    email = "user1@jive.org"
 
     url = qUrl
-
+#tribeUsers(value: {userId: $userId}) {
     q = """
     query {
       tribeUsers(value: { userId: "00000000-0000-0000-0000-000000000000" }) {
@@ -61,10 +64,14 @@ def get_user(token, requestID, appID):
       }
     }
     """
-
+    #variables = {'email': email}
+    #variables = {'userId': userID}
+    #print("variables: ", variables)
     resp = requests.post(url=url,
             headers=qHeaders,
+            #json={'query': q, 'variables': variables})
             json={'query': q})
+
 
     #print("body: ", resp.request.body)
     #print("headers: ", resp.request.headers)
@@ -87,7 +94,11 @@ def get_user_credentials(token, requestID, appID):
 
     q = """
     query {
-      tribeUserCredentials(value: { email: "dogdogalina@mrdogdogalina.com" }) {
+      tribeUserCredentials(value: {
+                                  email: "dogdogalina@mrdogdogalina.com",
+                                  appId: "9edd2f70-b50b-4c01-b216-701471889ccd",
+                                  password:"ff9k3l2"
+                                  }) {
         values {
           email
           appToken
@@ -146,7 +157,7 @@ print(" ")
 
 # query the Astra db using the token and uuid
 print("Testing that the token and uuid can be used to query Astra...")
-user = get_user(token, requestID, appID)
+user = get_user(token, requestID, userID)
 user = user.json()
 assert user['data']['tribeUsers']['values'][0]['email'] == "dogdogalina@mrdogdogalina.com", "Fail"
 print(" ")
@@ -171,21 +182,14 @@ print(" ")
 #curl -k -u realemail@realdomain.com:Password https://localhost:8000/regUser
 print("Testing creating a user with a valid email address")
 new_user = create_new_user('mrtomrota@gmail.com', 'Password', appID)
-assert wrong_username == 200, "Fail"
+assert new_user == 200, "Fail"
 print(" ")
 
 #test creating a new user with an invalid email address
 #curl -k -u idontexist@frankrizo.com:Password https://localhost:8000/regUser
 print("Testing creating a user with an invalid email address")
-new_user = create_new_user('idontexists@frankrizo.com', 'Password', appID)
-assert new_user == 200, "Fail"
-print(" ")
-
-# get a token and requestID using our go service
-print("Testing token and uuid retrieval without appID...")
-token, requestID = get_creds('dogdogalina@mrdogdogalina.com', 'ff9k3l2')
-print("get_creds no appID token: ", token)
-print("get_creds no appID requestID: ", requestID)
+non_user = create_new_user('idontexists@frankrizo.com', 'Password', appID)
+assert non_user == 200, "Fail"
 print(" ")
 
 print("Tests completed")

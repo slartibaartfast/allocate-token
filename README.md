@@ -2,7 +2,7 @@
 
 This is a service that is for creating and securing access tokens for apps to use with Astra and the Astra APIs.  It is packaged in a Docker container, and run in a kubernetes cluster.  It intends to circumvent building Astra connection credentials into apk or similar files which are distributed to end users by issueing and storing connection tokens and uuids to individual app users.
 
-Prerequisites:
+Prerequisites/Requirements:
   1) An [Astra](https://astra.datastax.com/register) database
   2) A repository for [Docker](https://www.docker.com/) images, such as [Docker Hub](https://hub.docker.com/)
   3) Access to a [Kubernetes](https://kubernetes.io/) cluster, or a local installation of [Kind](https://kubernetes.io/docs/setup/learning-environment/kind/), or [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/)
@@ -172,9 +172,41 @@ Looking empty?  There will be more data after testing the endpoints.
 Send a curl request to the endpoint to fetch a token and uuid:
 ```
 curl -k -u dogdogalina@mrdogdogalina.com:ff9k3l2 https://localhost:8000/authToken
-'''
+```
 
 If you have Python3 installed, run test.py to test the Astra database GraphQl endpoint and the endpoints of our service.
 ```
 python3 test.py
 ```
+
+You should see something like
+```
+Running ...
+Status OK
+```
+
+
+### Usage
+In an app, call the service endpoint to retrieve an Astra login token and transaction uuid.  Pass the email and password as entered by the user in the app's login screen.
+```
+def get_astra_creds(email, password, appID):
+    #print("Getting auth token and requestID values...")
+    headers = {'x-app-id': appID}
+    r = requests.get('https://localhost:8000/authToken',
+        auth=HTTPBasicAuth(email, password),
+        headers=headers,
+        verify=False)
+```
+
+
+## Credits
+[DataStax Academy](https://github.com/DataStax-Academy/cassandra-workshop-series)
+[astra_gocql_connect](https://github.com/flightc/astra_gocql_connect)
+[gocql](https://github.com/gocql/gocql)
+[Trumail](https://github.com/trumail/trumail)
+
+
+
+
+### License
+[Apache](https://choosealicense.com/licenses/apache)

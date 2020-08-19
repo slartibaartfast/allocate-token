@@ -7,7 +7,7 @@ Prerequisites/Requirements:
   2) A repository for [Docker](https://www.docker.com/) images, such as [Docker Hub](https://hub.docker.com/)
   3) Access to a [Kubernetes](https://kubernetes.io/) cluster, or a local installation of [Kind](https://kubernetes.io/docs/setup/learning-environment/kind/), or [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/)
   4) An [OpenSSL](https://www.openssl.org/) toolkit locally or in Docker
-  5) (Optional) A modern version of [Python](https://www.python.org/), for running GraphQl test queries
+  5) (Optional) A modern version of [Python](https://www.python.org/), for running GraphQL test queries
 
 
 ### Install tables and sample data in an Astra keyspace
@@ -150,7 +150,7 @@ kubectl get pods
 should return something like
 ```
 NAME                               READY   STATUS    RESTARTS   AGE
-token-allocator-58c4cb5d68-rf78v   1/1     Running   0          3h53m
+token-allocator-58c4cb5d68-rf78v   1/1     Running   0          1m
 ```
 
 
@@ -174,28 +174,68 @@ Send a curl request to the endpoint to fetch a token and uuid:
 curl -k -u dogdogalina@mrdogdogalina.com:ff9k3l2 https://localhost:8000/authToken
 ```
 
-If you have Python3 installed, run test.py to test the Astra database GraphQl endpoint and the endpoints of our service.
+If you have Python3 installed, run test.py to test the Astra database GraphQL endpoint and the endpoints of our service.
 ```
 python3 test.py
 ```
 
-You should see something like
+You should see something that begins and ends something like:
 ```
-Running ...
-Status OK
+Testing token and uuid retrieval...
+token:  c416e172-a1c2-4316-9614-a7fa64170663
+requestID:  b52cca03-b2af-4196-b27d-2a9708c504c5
+...
+Testing creating a user with an invalid email address
+status code:  200
+
+Tests completed
+
 ```
 
 
 ### Usage
-In an app, call the service endpoint to retrieve an Astra login token and transaction uuid.  Pass the email and password as entered by the user in the app's login screen.
+In an app, call the service endpoint to retrieve an Astra login token and transaction uuid.  Pass the email and password as entered by the user in the app's login screen to retrieve a fresh token and requestID.
 ```
 def get_astra_creds(email, password, appID):
-    #print("Getting auth token and requestID values...")
     headers = {'x-app-id': appID}
     r = requests.get('https://localhost:8000/authToken',
         auth=HTTPBasicAuth(email, password),
         headers=headers,
         verify=False)
+
+    token = r.authToken
+    requestID = r.requestID
+
+    return token, requestID
+```
+
+Later when connecting to Astra to get some data, use the token and requestID as credentials...
+
+```
+def get_user_location(token, requestID, appID):
+    qHeaders = {'accept': '*/*'}
+    qHeaders['content-type'] = 'application/json'
+    qHeaders['x-cassandra-request-id'] = requestID
+    qHeaders['x-cassandra-token'] = token
+    qHeaders['x-app-id'] = appID
+
+    q = """
+    query {
+      tribeMembers(value: {ownerId) {
+        values {
+                ownerId
+                memberIds
+        }
+      }
+    }
+    """
+
+    resp = requests.post(url=url,
+            headers=qHeaders,
+            json={'query': q})
+
+    return resp
+
 ```
 
 

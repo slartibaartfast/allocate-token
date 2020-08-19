@@ -241,8 +241,11 @@ def get_user_location(token, requestID, appID):
 
 ## Credits
 [DataStax Academy](https://github.com/DataStax-Academy/cassandra-workshop-series)
+
 [astra_gocql_connect](https://github.com/flightc/astra_gocql_connect)
+
 [gocql](https://github.com/gocql/gocql)
+
 [Trumail](https://github.com/trumail/trumail)
 
 

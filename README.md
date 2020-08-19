@@ -212,12 +212,13 @@ def get_astra_creds(email, password, appID):
 Later when connecting to Astra to get some data, use the token and requestID as credentials...
 
 ```
-def get_user_location(token, requestID, appID):
+def get_user_location(token, requestID):
     qHeaders = {'accept': '*/*'}
     qHeaders['content-type'] = 'application/json'
     qHeaders['x-cassandra-request-id'] = requestID
     qHeaders['x-cassandra-token'] = token
-    qHeaders['x-app-id'] = appID
+
+    url = 'https://11111111-22w3-fds1-5555-949494949494-us-east1.apps.astra.datastax.com/api/graphql'
 
     q = """
     query {

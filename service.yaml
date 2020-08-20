@@ -30,7 +30,7 @@ spec:
     spec:
       containers:
       - name: token-allocator
-        image: docker.io/trota/token-allocator:0.1.10
+        image: docker.io/trota/token-allocator:0.1.11
         ports:
         - containerPort: 8000
         envFrom:

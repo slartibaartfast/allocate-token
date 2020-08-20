@@ -96,7 +96,7 @@ Now we can create some secrets to hold information used by the service which wil
 
 First, we can add the name of our app management keyspace to an environmental variable named 'astraappmanagerkeyspace'.
 ```
-kubectl create secret generic astraappmanagerkeyspace --from-literal=astraappmangerkeyspace='app_manager'
+kubectl create secret generic astraappmanagerkeyspace --from-literal=astraappmanagerkeyspace='app_manager'
 ```
 
 Next, we can add the name of our app keyspace to an environmental variable named 'astraappkeyspace'.

@@ -30,14 +30,14 @@ spec:
     spec:
       containers:
       - name: token-allocator
-        image: docker.io/trota/token-allocator:0.1.9
+        image: docker.io/trota/token-allocator:0.1.10
         ports:
         - containerPort: 8000
         envFrom:
         - secretRef:
             name: astraadmincreds
         - secretRef:
-            name: astraatribeappcreds
+            name: astratribeappcreds
         - secretRef:
             name: astraapiendpoint
         - secretRef:

@@ -35,13 +35,17 @@ spec:
         - containerPort: 8000
         envFrom:
         - secretRef:
-            name: astracreds
+            name: astraadmincreds
+        - secretRef:
+            name: astraatribeappcreds
         - secretRef:
             name: astraapiendpoint
         - secretRef:
             name: astracqlhost
         - secretRef:
-            name: astrakeyspace
+            name: astraappmanagerkeyspace
+        - secretRef:
+            name: astraappkeyspace
         volumeMounts:
         - name: allocator-w3-secret-volume
           mountPath: "/home/service/certs"

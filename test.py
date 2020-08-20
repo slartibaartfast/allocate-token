@@ -9,12 +9,12 @@ import uuid
 # disable ssl warnings until we have proper certs
 urllib3.disable_warnings()
 
-#qUrl = Your Datastax GraphQl api endpoint
-qUrl = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.apps.astra.datastax.com/api/graphql"
+qUrl = "A Datastax GraphQl api endpoint"
 
 # The app_id that was created by the insert statemnt in sample_data.cql
-appID = '9edd2f70-b50b-4c01-b216-701471889ccd'
+appID = 'db9b4884-32db-4bbe-9869-63ce537bd250'
 
+# The user id created while loading testing data
 userID = '00000000-0000-0000-0000-000000000000'
 
 #curl -k -u dogdogalina@mrdogdogalina.com:ff9k3l2 https://localhost:8000/
@@ -43,6 +43,7 @@ def get_creds(email, password, appID):
 # Use our token and uuid to query Astra
 # TODO: pass userID as a variable
 #tribeUsers(value: { userId: "00000000-0000-0000-0000-000000000000" }) {
+# TODO: why does this pass userID?
 def get_user(token, requestID, userID):
     qHeaders = {'accept': '*/*'}
     qHeaders['content-type'] = 'application/json'

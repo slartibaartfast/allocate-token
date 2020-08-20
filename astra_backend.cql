@@ -1,14 +1,23 @@
 /* script to create a backend for the tribe app using Astra */
 /* https://astra.datastax.com/
 
-/* TODO: create a role for app users that has less authority */
+/* create a role for app users that has less authority - done manually */
+/* instructions for creating a role are in the readme                  */
 
-CREATE KEYSPACE IF NOT EXISTS app_manager
-    WITH replication = {'class': 'NetworkTopologyStrategy', 'caas-dc': '1'}
-    AND durable_writes = true;
+/* keyspaces also need to be created manually                                 */
+/* see https://docs.astra.datastax.com/docs/managing-keyspaces                */
+/* CREATE KEYSPACE IF NOT EXISTS app_manager                                  */
+/*    WITH replication = {'class': 'NetworkTopologyStrategy', 'caas-dc': '1'} */
+/*    AND durable_writes = true;
+
+/* CREATE KEYSPACE IF NOT EXISTS tribe                                        */
+/*    WITH replication = {'class': 'NetworkTopologyStrategy', 'caas-dc': '1'} */
+/*    AND durable_writes = true;                                              */
+
 
 USE app_manager;
 
+/* Keep track of users and which apps they subscribe to */
 CREATE TABLE IF NOT EXISTS tribe_user_credentials (
     email text,
     app_id uuid,
@@ -20,10 +29,16 @@ CREATE TABLE IF NOT EXISTS tribe_user_credentials (
     PRIMARY KEY ((email, app_id, password))
 );
 
-CREATE KEYSPACE IF NOT EXISTS tribe
-    WITH replication = {'class': 'NetworkTopologyStrategy', 'caas-dc': '1'}
-    AND durable_writes = true;
+/* Keep track of the apps in separate keyspaces  */
+CREATE TABLE IF NOT EXISTS keyspace_apps (
+    app_id uuid PRIMARY KEY,
+    app_name text,
+    keyspace_name text,
+    date_created timestamp
+);
 
+
+/* TODO: add a table for sharing waypoints */
 USE tribe;
 
 /* A user defined datatype to store latitude and longitude coordinates */
@@ -32,11 +47,6 @@ CREATE TYPE IF NOT EXISTS tribe_geo_point_udt (
     longitude double
 );
 
-CREATE TABLE IF NOT EXISTS keyspace_apps (
-    app_id uuid PRIMARY KEY,
-    app_name text,
-    date_created timestamp
-);
 
 CREATE TABLE IF NOT EXISTS tribe_users (
     user_id uuid PRIMARY KEY,
@@ -46,18 +56,15 @@ CREATE TABLE IF NOT EXISTS tribe_users (
     last_login timestamp
 );
 
-
-/* CREATE INDEX tribe_user_credentials_user_id */
-/*  ON tribe_user_credentials (user_id); */
-
 /* store the last known location of a user */
-/* TODO: make a partition key for user and month */
+/* TODO: make a partition key for user and month                        */
+/* TODO: cluster ascending...WITH CLUSTERING ORDER BY (created_at ASC); */
 CREATE TABLE IF NOT EXISTS tribe_user_location (
     user_id uuid,
     created_at timestamp,
     location tribe_geo_point_udt,
-    PRIMARY KEY (user_id))
-WITH CLUSTERING ORDER BY (created_at ASC);
+    PRIMARY KEY (user_id)
+);
 
 /* associate the creator of a tribe with members of that tribe */
 /* owner_id and member_id are both user_id values */

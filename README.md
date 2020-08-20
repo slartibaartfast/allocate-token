@@ -11,12 +11,27 @@ Prerequisites/Requirements:
 
 
 ### Install tables and sample data in an Astra keyspace
+
+Create two new keyspaces, one for secret data named app_manager and one that will store app generated data named tribe.  Refer to this [Astra documentation](https://docs.astra.datastax.com/docs/managing-keyspaces) as needed.
+
+
+Create a roll with limited permissions for the app to use by opening a CQL prompt in the top level keyspace and running:
+```
+CREATE ROLE app_user WITH PASSWORD = 'AUniquePassword' AND LOGIN = true;
+```
+Grant limited permissions to the role by running:
+```
+GRANT UPDATE ON KEYSPACE tribe TO app_user;
+GRANT SELECT ON KEYSPACE tribe TO app_user;
+```
+
 Two .cql scripts are included to create a set of tables used by the not-yet-complete geolocation sharing mobile app [Tribe](http://tribe.posfoundations.com/).
-In a CQL Console, run the CQL in astra_backend.cql to create a keyspace named killrvideo, the tables used by the app Tribe.  Once the tables have been created, run the CQL in sample_data.cql to populate the tables with a small amount of data.
+In a CQL Console, run the CQL in astra_backend.cql to create the tables used by the service and by the app.  Once the tables have been created, run the CQL in sample_data.cql to populate the tables with a small amount of data.
 Now we have fake user and app data to work with.
 
 
 ### For running locally in Kind...
+
 Follow the instructions at
 https://kind.sigs.k8s.io/docs/user/ingress/
 1) run kind-config.yaml
@@ -32,6 +47,7 @@ kubectl patch daemonsets -n projectcontour envoy -p '{"spec":{"template":{"spec"
 
 
 ### Add secrets to kubernetes...
+
 Let's keep security in mind from the beginning by creating a certificate, key and secret for the web server.  We will also create secrets used to connect to an Astra database.  And then we will create several more secrets to hold sensitive information in environmental variables.
 
 Pick a more permanent location for the files if you like - /tmp may be purged depending on your operating system.
@@ -52,6 +68,7 @@ writing new private key to '/tmp/tls.key'
 
 
 ### Download the secure connect bundle for your Astra database
+
 On the Summary page of the [Astra](astra.datastax.com) database instance there is a link to download this bundle.  It has several files we will make secrets with.
 Download the file and unpackage it in a convenient directory.
 
@@ -75,14 +92,27 @@ kubectl create secret tls astratls --cert=/tmp/cert --key=/tmp/key
 kubectl create secret generic astraca --from-file=astraca=/tmp/ca.crt
 ```
 
-Now we can create some secrets to hold information used by the service which will be injected into the pod upon its creation.  First, we can add the name of our keyspace to an environmental variable named 'astrakeyspace'.
+Now we can create some secrets to hold information used by the service which will be injected into the pod upon its creation.  
+
+First, we can add the name of our app management keyspace to an environmental variable named 'astraappmanagerkeyspace'.
 ```
-kubectl create secret generic astrakeyspace --from-literal=astrakeyspace='killrvideo'
+kubectl create secret generic astraappmanagerkeyspace --from-literal=astraappmangerkeyspace='app_manager'
 ```
 
-The astracreds secret holds the username and password used to log in to your Astra keyspace.  Replace 'KVUser' and 'KVPassword' with your login credentials for this keyspace.
+Next, we can add the name of our app keyspace to an environmental variable named 'astraappkeyspace'.
 ```
-kubectl create secret generic astracreds --from-literal=adminusername='KVUser' --from-literal=adminpassword='KVPassword'
+kubectl create secret generic astraappkeyspace --from-literal=astraappkeyspace='tribe'
+```
+
+The astraadmincreds secret holds the username and password used to log in to your Astra keyspace.  Replace 'KVUser' and 'KVPassword' with your login credentials for this keyspace.
+```
+kubectl create secret generic astraadmincreds --from-literal=adminusername='AdminUser' --from-literal=adminpassword='AdminPassword'
+
+```
+
+The astratribeappcreds secret holds the username and password used to log in to the tribe keyspace.
+```
+kubectl create secret generic astratribeappcreds --from-literal=tribeappusername='TAUser' --from-literal=tribeapppassword='TAPassword'
 ```
 
 The astraapiendpoint variable holds the endpoint we connect to for authentication as described in [the documentation](https://docs.astra.datastax.com/docs/generating-authorization-token)
@@ -238,6 +268,10 @@ def get_user_location(token, requestID):
     return resp
 
 ```
+
+
+### Set up an A record
+So that a subdomain can point to the ip address of the ingress
 
 
 ### Credits

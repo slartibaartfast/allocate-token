@@ -20,7 +20,7 @@ import (
 )
 
 // This implements a service for use with Datastax Astra which tries to make
-// issueing authorization tokens to app users a little more secure
+// issueing authorization tokens to mobile app users a little more secure
 
 // TODO: Move the user credentials table to it's own keyspace, and create
 // a separate connection for working with that keyspace
@@ -29,8 +29,10 @@ var email string
 var count string
 var adminusername = os.Getenv("adminusername")
 var adminpassword = os.Getenv("adminpassword")
+var appusername = os.Getenv("tribeappusername")
+var apppassword = os.Getenv("tribeapppassword")
 var apiEndpoint = os.Getenv("astraapiendpoint")
-var session *gocql.Session
+var amsession *gocql.Session
 
 // A handler for the web server
 type handler func(w http.ResponseWriter, r *http.Request)
@@ -72,7 +74,7 @@ func main() {
 	}
 
 	// defer closing the session
-	defer session.Close()
+	defer amsession.Close()
 
 	// Serve 200 status on / for k8s health checks
 	http.HandleFunc("/", handleRoot)
@@ -199,10 +201,11 @@ func handleNewUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Setup a connection for administrative use
 func configureAstra() error {
 	var cqlshrcHost = os.Getenv("astracqlhost")
 	log.Println("astracqlhost: ", cqlshrcHost)
-	log.Println("astrakeyspace: ", os.Getenv("astrakeyspace"))
+	log.Println("astraappmanagerkeyspace: ", os.Getenv("astraappmanagerkeyspace"))
 	var cqlshrcPort = "31770"
 
 	// set up the connection
@@ -241,7 +244,7 @@ func configureAstra() error {
 	cluster := gocql.NewCluster(cqlshrcHost)
 	cluster.Timeout = time.Second * 30
 	cluster.ConnectTimeout = time.Second * 30
-	cluster.Keyspace = os.Getenv("astrakeyspace")
+	cluster.Keyspace = os.Getenv("astraappmanagerkeyspace")
 	cluster.Consistency = gocql.Quorum
 	cluster.SslOpts = &gocql.SslOptions{
 		Config:                 tlsConfig,
@@ -254,7 +257,7 @@ func configureAstra() error {
 	cluster.Hosts = []string{cqlshrcHost + ":" + cqlshrcPort}
 
 	// create a session
-	session, err = cluster.CreateSession()
+	amsession, err = cluster.CreateSession()
 	if err != nil {
 		log.Println("Error creating session")
 		log.Println(err)
@@ -268,7 +271,7 @@ func configureAstra() error {
 // See if this username exists
 func checkUsername(appID string, username string, password string) int {
 	var count int
-	if err := session.Query(
+	if err := amsession.Query(
 		`SELECT count(*) FROM tribe_user_credentials WHERE app_id = ? and email = ? and password = ?`,
 		appID, username, password).Scan(&count); err != nil {
 		log.Println("Error confirming existance of user")
@@ -285,7 +288,7 @@ func validateUser(appID, username string, password string) error {
 	var userID string
 
 	// Select a user with the supplied credentials
-	if err := session.Query(
+	if err := amsession.Query(
 		`SELECT user_id FROM tribe_user_credentials WHERE app_id = ? and email = ? and password = ?`,
 		appID, username, password).Scan(&userID); err != nil {
 		log.Println("Error validating user")
@@ -295,7 +298,8 @@ func validateUser(appID, username string, password string) error {
 	return nil
 }
 
-// fetch a graphql api token from Astra api, return the token and a uuid
+// fetch a api access token from Astra api, return the token and a uuid
+// the token is retrieved using the app db account with lesser credentials
 func fetchToken() (string, string, error) {
 	//var username = "KVUser"
 	//var password = "KVPassword"
@@ -320,7 +324,7 @@ func fetchToken() (string, string, error) {
 
 	client := &http.Client{Transport: tr}
 
-	var jsonData = []byte(`{"username":"` + adminusername + `","password":"` + adminpassword + `"}`)
+	var jsonData = []byte(`{"username":"` + appusername + `","password":"` + apppassword + `"}`)
 	req, err := http.NewRequest("POST", apiEndpoint, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("Error building request")
@@ -380,13 +384,14 @@ func fetchToken() (string, string, error) {
 
 // Write the request-id and token to the user credentials table
 // TODO: this should also insert into tribe_users.last_login
+// var appkeyspace = os.Getenv("astraappkeyspace")
 func updateUserCreds(authToken string, uuid string, email string, password string, appID string) error {
 	log.Println("updateUserCreds authToken: ", authToken)
 	log.Println("updateUserCreds uuid: ", uuid)
 	log.Println("updateUserCreds email: ", email)
 	log.Println("updateUserCreds password: ", password)
 	log.Println("updateUserCreds appID: ", appID)
-	if err := session.Query(
+	if err := amsession.Query(
 		`UPDATE tribe_user_credentials SET app_token = ?, app_request_id = ?, date_creds_generated = toTimeStamp(now()) WHERE email = ? and password = ? and app_id = ?`,
 		authToken, uuid, email, password, appID).Exec(); err != nil {
 		log.Println("Error updating tribe_user_credentials with token, uuid")

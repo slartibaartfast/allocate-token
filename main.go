@@ -158,6 +158,8 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 	log.Println("handlToken requestID:", requestID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Println("Error retrieving token")
+		log.Println(err)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(&result{authToken, requestID})

@@ -9,7 +9,14 @@ import uuid
 # disable ssl warnings until we have proper certs
 urllib3.disable_warnings()
 
-qUrl = "A Datastax GraphQl api endpoint"
+#qUrl = "A Datastax GraphQl api endpoint"
+qUrl = "https://${ASTRA_CLUSTER_ID}-${ASTRA_CLUSTER_REGION}.apps.astra.datastax.com/api/graphql"
+
+# The rest api endpoint for fetching a user in the tribe keyspace
+restUserUrl = "https://${ASTRA_CLUSTER_ID}-${ASTRA_CLUSTER_REGION}.apps.astra.datastax.com/api/rest/v1/keyspaces/tribe/tables/tribe_users/rows/00000000-0000-0000-0000-000000000000"
+
+# The rest api enpoint for getting user credentials from the app_manager keyspace
+restUserCredsUrl = "https://${ASTRA_CLUSTER_ID}-${ASTRA_CLUSTER_REGION}.apps.astra.datastax.com/api/rest/v1/keyspaces/app_manager/tables/tribe_user_credentials/rows/dogdogalina@mrdogdogalina.com"
 
 # The app_id that was created by the insert statemnt in sample_data.cql
 appID = 'db9b4884-32db-4bbe-9869-63ce537bd250'
@@ -40,16 +47,44 @@ def get_creds(email, password, appID):
     return token, requestID
 
 
+def get_user_rest(token, requestID):
+    headers = {'content-type' : 'application/json'}
+    headers['x-cassandra-request-id'] = requestID
+    headers['x-cassandra-token'] = token
+    url = restUserUrl
+
+    resp = requests.get(url=url,
+            headers=headers)
+
+    #print("response: ", resp.text)
+
+    return resp
+
+
+def get_user_credentials_rest(token, requestID):
+    headers = {'content-type' : 'application/json'}
+    headers['x-cassandra-request-id'] = requestID
+    #headers['x-cassandra-request-id'] = "320672b0-6a99-42dc-b642-7be1056bb334"
+    headers['x-cassandra-token'] = token
+    url = restUserCredsUrl
+    resp = requests.get(url=url,
+            headers=headers)
+
+    print("status code: ", resp.status_code)
+
+    return resp
+
+
 # Use our token and uuid to query Astra
 # TODO: pass userID as a variable
 #tribeUsers(value: { userId: "00000000-0000-0000-0000-000000000000" }) {
-# TODO: why does this pass userID?
+# TODO: why does this pass userID - because it should be a variable in the query
 def get_user(token, requestID, userID):
     qHeaders = {'accept': '*/*'}
     qHeaders['content-type'] = 'application/json'
     qHeaders['x-cassandra-request-id'] = requestID
+    #qHeaders['x-cassandra-request-id'] = "320672b0-6a99-42dc-b642-7be1056bb334"
     qHeaders['x-cassandra-token'] = token
-    email = "user1@jive.org"
 
     url = qUrl
 #tribeUsers(value: {userId: $userId}) {
@@ -76,20 +111,19 @@ def get_user(token, requestID, userID):
 
     #print("body: ", resp.request.body)
     #print("headers: ", resp.request.headers)
-    print(" ")
+    #print(" ")
     print("response: ", resp.text)
 
     return resp
 
 
-# Check to see if our service upserted the token and uuid into the user credentials table
+# Check to see if the app user has access to the user credentials table
 # TODO: pass email as a variable
-def get_user_credentials(token, requestID, appID):
+def get_user_credentials(token, requestID):
     qHeaders = {'accept': '*/*'}
     qHeaders['content-type'] = 'application/json'
     qHeaders['x-cassandra-request-id'] = requestID
     qHeaders['x-cassandra-token'] = token
-    qHeaders['x-app-id'] = appID
 
     url = qUrl
 
@@ -114,11 +148,6 @@ def get_user_credentials(token, requestID, appID):
     resp = requests.post(url=url,
             headers=qHeaders,
             json={'query': q})
-
-    #print("body: ", resp.request.body)
-    #print("headers: ", resp.request.headers)
-    print(" ")
-    print("response: ", resp.text)
 
     return resp
 
@@ -157,26 +186,48 @@ assert requestID == str(uuid.UUID(requestID)), "Fail"
 print(" ")
 
 # query the Astra db using the token and uuid
-print("Testing that the token and uuid can be used to query Astra...")
-user = get_user(token, requestID, userID)
+print("Testing that the token and uuid can be used to query Astra tribe \
+keyspace via the rest endpoint...")
+user = get_user_rest(token, requestID)
 user = user.json()
-assert user['data']['tribeUsers']['values'][0]['email'] == "dogdogalina@mrdogdogalina.com", "Fail"
+#print("user: ", user)
+assert user['rows'][0]['email'] == "dogdogalina@mrdogdogalina.com", "Fail"
+print("Pass")
 print(" ")
+
+print("Testing that the app user cannot query the app_manager keyspace \
+via the rest endpoint...")
+user = get_user_credentials_rest(token, requestID)
+#user = user.json()
+assert user.status_code == 400, "Fail"
+print("Pass")
+print(" ")
+
+
+
+#print("Testing that the token and uuid can be used to query Astra tribe \
+#       keyspace via the GraphQL enpoint...")
+#user = get_user(token, requestID, userID)
+#user = user.json()
+#assert user['data']['tribeUsers']['values'][0]['email'] == "dogdogalina@mrdogdogalina.com", "Fail"
+#print(" ")
 
 # query the Astra db to see if our service updated the tribe_user_credentials
 # table with the new token
 # assert that tribe_user_credentials.app_token equals the variable named token
-print("Testing that we upserted the user credentials table with the token and uuid...")
-user_creds = get_user_credentials(token, requestID, appID)
-user_creds = user_creds.json()
-assert user_creds['data']['tribeUserCredentials']['values'][0]['appToken'] == str(token), "Fail"
-assert user_creds['data']['tribeUserCredentials']['values'][0]['appRequestId'] == str(requestID), "Fail"
-print(" ")
+#print("Testing that the app user cannot query the app_manager keyspace...")
+#user_creds = get_user_credentials(token, requestID)
+#user_creds = user_creds.json()
+#print("user_creds: ", user_creds)
+#assert user_creds['data']['tribeUserCredentials']['values'][0]['appToken'] == str(token), "Fail"
+#assert user_creds['data']['tribeUserCredentials']['values'][0]['appRequestId'] == str(requestID), "Fail"
+#print(" ")
 
 # test if we identify nonexistant user
 print("Testing that submitting an invalid username returns a status of 404...")
 wrong_username = wrong_username('idontexist@frankrizo.com', 'ff9k3l2', appID)
 assert wrong_username == 404, "Fail"
+print("Pass")
 print(" ")
 
 # test creating a new user with a valid email address
@@ -184,6 +235,7 @@ print(" ")
 print("Testing creating a user with a valid email address")
 new_user = create_new_user('mrtomrota@gmail.com', 'Password', appID)
 assert new_user == 200, "Fail"
+print("Pass")
 print(" ")
 
 #test creating a new user with an invalid email address
@@ -191,6 +243,7 @@ print(" ")
 print("Testing creating a user with an invalid email address")
 non_user = create_new_user('idontexists@frankrizo.com', 'Password', appID)
 assert non_user == 200, "Fail"
+print("Pass")
 print(" ")
 
 print("Tests completed")

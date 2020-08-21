@@ -168,6 +168,10 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 		email, password, _ := r.BasicAuth()
 		appID := r.Header.Get("x-app-id")
 		err = updateUserCreds(authToken, requestID, email, password, appID)
+		if err != nil {
+			log.Println("Error updating user")
+			log.Println(err)
+		}
 	}
 }
 
@@ -176,11 +180,9 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 func handleNewUser(w http.ResponseWriter, r *http.Request) {
 	email, password, _ := r.BasicAuth()
 	appID := r.Header.Get("x-app-id")
-	v := trumail.NewVerifier("posfoundations.com", "development@posfoundations.com")
-	lookup, err := v.Verify(email)
-	log.Println("lookup.ValidFormat: ", lookup.ValidFormat)
-	log.Println(v.Verify(email))
+	err := validateUserEmail(email)
 	if err != nil {
+		http.Error(w, "invalid username", http.StatusNotFound)
 		log.Println("Error verifying email")
 		log.Println(err)
 	} else {
@@ -190,15 +192,86 @@ func handleNewUser(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
+		userID, err := gocql.RandomUUID()
+		if err != nil {
+			log.Println("Error creating UUID for new user")
+			log.Println(err)
+		}
+		// create a new record in the credentials table
+		err = insertNewUser(authToken, requestID, email, password, appID, userID.String())
+		if err != nil {
+			log.Println("Error creating new user")
+			log.Println(err)
+		}
+		// return the authToken and requestID of the new user
 		w.Header().Set("Content-Type", "application/json")
 		err = json.NewEncoder(w).Encode(&result{authToken, requestID})
 		if err != nil {
 			log.Println("Error writing json from /handleNewUser")
-		} else {
-			// write the requestID to the caller's credentials table
-			err = updateUserCreds(authToken, requestID, email, password, appID)
+			log.Println(err)
 		}
 	}
+}
+
+// fetch a api access token from Astra api, return the token and a uuid
+// the token is retrieved on behalf of the app db account with lesser privileges
+func fetchToken() (string, string, error) {
+	var apptoken = new(astraResponse)
+
+	// generate a uuid
+	// gocql.UUID also generates one... var id gocqlUUID
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		log.Println("Error generating uuid")
+	}
+	uuid := fmt.Sprintf("%x-%x-%x-%x-%x",
+		b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+
+	tr := &http.Transport{
+		MaxIdleConns:       10,
+		IdleConnTimeout:    30 * time.Second,
+		DisableCompression: true,
+	}
+
+	client := &http.Client{Transport: tr}
+
+	var jsonData = []byte(`{"username":"` + appusername + `","password":"` + apppassword + `"}`)
+	req, err := http.NewRequest("POST", apiEndpoint, bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Println("Error building request")
+		log.Println("Error: ", err)
+	}
+	req.Header.Set("accept", "*/*")
+	req.Header.Set("content-type", "application/json")
+	req.Header.Set("x-cassandra-request-id", uuid)
+	if err != nil {
+		log.Println("Error adding headers")
+		log.Println("Error: ", err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("Error fetching token from Datastax")
+		log.Println("Error: ", err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("Error reading response body")
+		log.Println("Error: ", err)
+	}
+
+	err = json.Unmarshal(body, &apptoken)
+	if err != nil {
+		log.Println("Error unmarshalling response body")
+		log.Println(err)
+	}
+
+	resp.Body.Close()
+
+	//return the x-cassandra-token and x-cassandra-request-id values
+	return apptoken.AuthToken, uuid, err
 }
 
 // Setup a connection for administrative use
@@ -268,6 +341,18 @@ func configureAstra() error {
 	return err
 }
 
+func validateUserEmail(email string) error {
+	v := trumail.NewVerifier("posfoundations.com", "development@posfoundations.com")
+	lookup, err := v.Verify(email)
+	log.Println("lookup.ValidFormat: ", lookup.ValidFormat)
+	log.Println(v.Verify(email))
+	if err != nil {
+		log.Println("Error verifying email")
+		log.Println(err)
+	}
+	return nil
+}
+
 // See if this username exists
 func checkUsername(appID string, username string, password string) int {
 	var count int
@@ -278,7 +363,6 @@ func checkUsername(appID string, username string, password string) int {
 		log.Println(err)
 		return 0
 	}
-
 	return count
 }
 
@@ -298,101 +382,43 @@ func validateUser(appID, username string, password string) error {
 	return nil
 }
 
-// fetch a api access token from Astra api, return the token and a uuid
-// the token is retrieved using the app db account with lesser credentials
-func fetchToken() (string, string, error) {
-	//var username = "KVUser"
-	//var password = "KVPassword"
-	//var apiEndpoint = "https://6956bade-64fb-4dcd-9489-d3f836b92762-us-east1.apps.astra.datastax.com/api/rest/v1/auth"
-	var apptoken = new(astraResponse)
-
-	// generate a uuid
-	// gocql.UUID also generates one... var id gocqlUUID
-	b := make([]byte, 16)
-	_, err := rand.Read(b)
-	if err != nil {
-		log.Println("Error generating uuid")
-	}
-	uuid := fmt.Sprintf("%x-%x-%x-%x-%x",
-		b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
-
-	tr := &http.Transport{
-		MaxIdleConns:       10,
-		IdleConnTimeout:    30 * time.Second,
-		DisableCompression: true,
-	}
-
-	client := &http.Client{Transport: tr}
-
-	var jsonData = []byte(`{"username":"` + appusername + `","password":"` + apppassword + `"}`)
-	req, err := http.NewRequest("POST", apiEndpoint, bytes.NewBuffer(jsonData))
-	if err != nil {
-		log.Println("Error building request")
-		log.Println("Error: ", err)
-	} else {
-		log.Println("Request created successfully")
-		//log.Println("Request apiEndpoint: ", apiEndpoint)
-		//log.Println("Request jsonData: ", jsonData)
-	}
-	req.Header.Set("accept", "*/*")
-	req.Header.Set("content-type", "application/json")
-	req.Header.Set("x-cassandra-request-id", uuid)
-	if err != nil {
-		log.Println("Error adding headers")
-	} else {
-		log.Println("Set headers")
-		//Loop over header names
-		for name, values := range req.Header {
-			//Loop over all values for the name.
-			for _, value := range values {
-				log.Println("Header name, value: ", name, value)
-			}
-		}
-	}
-
-	//buf, bodyErr := ioutil.ReadAll(req.Body)
-	//if bodyErr != nil {
-	//	log.Println("bodyErr ", bodyErr.Error())
-	//} else {
-	//	log.Println("Body created successfully")
-	//}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		//log.Println("The uuid: ", uuid)
-		//log.Println("The request data: ", ioutil.NopCloser(bytes.NewBuffer(buf)))
-		log.Println("Error fetching token from Datastax")
-		log.Println("Error: ", err)
-	}
-
-	//log.Println("response Status:", resp.Status)
-	//log.Println("response Headers:", resp.Header)
-	body, _ := ioutil.ReadAll(resp.Body)
-	log.Println("response Body:", string(body))
-
-	err = json.Unmarshal(body, &apptoken)
-	if err != nil {
-		log.Println("Error unmarshalling")
-		log.Println(err)
-	}
-
-	resp.Body.Close()
-
-	//return the x-cassandra-token and x-cassandra-request-id values
-	return apptoken.AuthToken, uuid, err
-}
-
 // Write the request-id and token to the user credentials table
+// TODO: New users need to be assigned a user id
 // TODO: this should also insert into tribe_users.last_login
 // var appkeyspace = os.Getenv("astraappkeyspace")
 func updateUserCreds(authToken string, uuid string, email string, password string, appID string) error {
+	log.Println("Updateing user: ", email)
 	log.Println("updateUserCreds authToken: ", authToken)
 	log.Println("updateUserCreds uuid: ", uuid)
 	log.Println("updateUserCreds email: ", email)
 	log.Println("updateUserCreds password: ", password)
 	log.Println("updateUserCreds appID: ", appID)
 	if err := amsession.Query(
-		`UPDATE tribe_user_credentials SET app_token = ?, app_request_id = ?, date_creds_generated = toTimeStamp(now()) WHERE email = ? and password = ? and app_id = ?`,
+		`UPDATE tribe_user_credentials SET app_token = ?,
+		 app_request_id = ?,
+		 date_creds_generated = toTimeStamp(now())
+		 WHERE email = ? and password = ? and app_id = ?`,
+		authToken, uuid, email, password, appID).Exec(); err != nil {
+		log.Println("Error updating tribe_user_credentials with token, uuid")
+		log.Println(err)
+	}
+	return nil
+}
+
+// Insert a new record in tribe_user_credentials
+func insertNewUser(authToken string, uuid string, email string, password string, appID string, userID string) error {
+	log.Println("Creating new user: ", email)
+	log.Println("updateUserCreds authToken: ", authToken)
+	log.Println("updateUserCreds uuid: ", uuid)
+	log.Println("updateUserCreds email: ", email)
+	log.Println("updateUserCreds password: ", password)
+	log.Println("updateUserCreds appID: ", appID)
+	log.Println("updateUserCreds appID: ", userID)
+	if err := amsession.Query(
+		`UPDATE tribe_user_credentials SET app_token = ?,
+		 app_request_id = ?,
+		 date_creds_generated = toTimeStamp(now())
+		 WHERE email = ? and password = ? and app_id = ?`,
 		authToken, uuid, email, password, appID).Exec(); err != nil {
 		log.Println("Error updating tribe_user_credentials with token, uuid")
 		log.Println(err)

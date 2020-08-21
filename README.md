@@ -21,6 +21,7 @@ CREATE ROLE app_user WITH PASSWORD = 'AUniquePassword' AND LOGIN = true;
 ```
 Grant limited permissions to the role by running:
 ```
+GRANT DESCRIBE ON KEYSPACE tribe to app_user;
 GRANT UPDATE ON KEYSPACE tribe TO app_user;
 GRANT SELECT ON KEYSPACE tribe TO app_user;
 ```
@@ -48,7 +49,7 @@ kubectl patch daemonsets -n projectcontour envoy -p '{"spec":{"template":{"spec"
 
 ### Add secrets to kubernetes...
 
-Let's keep security in mind from the beginning by creating a certificate, key and secret for the web server.  We will also create secrets used to connect to an Astra database.  And then we will create several more secrets to hold sensitive information in environmental variables.
+Let's create a certificate, key and secret for the web server.  We will also create secrets used to connect to an Astra database.  And then we will create several more secrets to hold sensitive information in environmental variables that we will inject into our pods.
 
 Pick a more permanent location for the files if you like - /tmp may be purged depending on your operating system.
 
@@ -104,7 +105,7 @@ Next, we can add the name of our app keyspace to an environmental variable named
 kubectl create secret generic astraappkeyspace --from-literal=astraappkeyspace='tribe'
 ```
 
-The astraadmincreds secret holds the username and password used to log in to your Astra keyspace.  Replace 'KVUser' and 'KVPassword' with your login credentials for this keyspace.
+The astraadmincreds secret holds the username and password used to log in to your Astra instance.  Replace 'AdminUser' and 'AdminPassword' with your login credentials.
 ```
 kubectl create secret generic astraadmincreds --from-literal=adminusername='AdminUser' --from-literal=adminpassword='AdminPassword'
 
@@ -132,14 +133,16 @@ kubectl get secrets
 
 The output should contain the secrets:
 ```
-NAME                  TYPE                        DATA   AGE
-allocatorw3secret     kubernetes.io/tls           2      29s
-astraapiendpoint      Opaque                      1      28s
-astraca               Opaque                      1      27s
-astracqlhost          Opaque                      1      26s
-astracreds            Opaque                      2      25s
-astrakeyspace         Opaque                      1      24s
-astratls              kubernetes.io/tls           2      23s
+NAME                      TYPE                                  DATA   AGE
+allocatorw3secret         kubernetes.io/tls                     2      11m
+astraadmincreds           Opaque                                2      11m
+astraapiendpoint          Opaque                                1      11m
+astraappkeyspace          Opaque                                1      11m
+astraappmanagerkeyspace   Opaque                                1      11m
+astraca                   Opaque                                1      11m
+astracqlhost              Opaque                                1      11m
+astratls                  kubernetes.io/tls                     2      11m
+astratribeappcreds        Opaque                                2      11m
 ```
 
 These secrets are referenced in service.yaml and in main.go.
@@ -204,7 +207,8 @@ Send a curl request to the endpoint to fetch a token and uuid:
 curl -k -u dogdogalina@mrdogdogalina.com:ff9k3l2 https://localhost:8000/authToken
 ```
 
-If you have Python3 installed, run test.py to test the Astra database GraphQL endpoint and the endpoints of our service.
+If you have Python3 installed, or a Docker container with a Python3 environment, run test.py to test the Astra database GraphQL endpoint and the endpoints of our service.
+Prior to running the script, edit the endpoint variables to use your cluster ID and region in the urls.
 ```
 python3 test.py
 ```

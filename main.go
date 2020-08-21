@@ -178,7 +178,6 @@ func handleToken(w http.ResponseWriter, r *http.Request) {
 }
 
 // Let /regUser create a new user record
-//TODO: pass NewVerifier variables
 func handleNewUser(w http.ResponseWriter, r *http.Request) {
 	email, password, _ := r.BasicAuth()
 	appID := r.Header.Get("x-app-id")
@@ -193,6 +192,8 @@ func handleNewUser(w http.ResponseWriter, r *http.Request) {
 		log.Println("handleNewUser requestID:", requestID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Println("Error retrieving token")
+			log.Println(err)
 		}
 		userID, err := gocql.RandomUUID()
 		if err != nil {
@@ -349,11 +350,7 @@ func validateUserEmail(email string) error {
 	lookup, err := v.Verify(email)
 	log.Println("lookup.ValidFormat: ", lookup.ValidFormat)
 	log.Println(v.Verify(email))
-	if err != nil {
-		log.Println("Error verifying email")
-		log.Println(err)
-	}
-	return nil
+	return err
 }
 
 // See if this username exists

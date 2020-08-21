@@ -216,7 +216,12 @@ Looking rather empty?  There will be more data after testing the endpoints.
 
 Send a curl request to the endpoint to fetch a token and uuid:
 ```
-curl -k -u dogdogalina@mrdogdogalina.com:ff9k3l2 https://localhost:8000/authToken
+curl -k -H "x-app-id: db9b4884-32db-4bbe-9869-63ce537bd250" -u dogdogalina@mrdogdogalina.com:ff9k3l2 https://localhost:8000/authToken
+
+```
+The response should have values for an authToken and a requestID:
+```
+{"authToken":"bf34e555-ed7b-4f2b-a352-d403fe680d6f","requestID":"9d587e86-9255-1855-8db6-e3d9cfe6f9f1"}
 ```
 
 If you have Python3 installed, or a Docker container with a Python3 environment, run test.py to test the Astra database GraphQL endpoint, a couple of the Astra REST api endpoints, and the endpoints of our service.

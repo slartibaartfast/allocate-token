@@ -12,10 +12,10 @@ Prerequisites/Requirements:
 
 ### Install tables and sample data in an Astra keyspace
 
-Create two new keyspaces, one for secret data named app_manager and one that will store app generated data named tribe.  Refer to this [Astra documentation](https://docs.astra.datastax.com/docs/managing-keyspaces) as needed.
+There is a bit of configuration to do.  Create two new keyspaces, one for secret data named "app_manager" and one that will store app generated data, named "tribe".  Refer to this [Astra documentation](https://docs.astra.datastax.com/docs/managing-keyspaces) on adding keyspaces in Astra as necessary.
 
 
-Create a roll with limited permissions for the app to use by opening a CQL prompt in the top level keyspace and running:
+Next, create a roll with limited permissions for the app to use by opening a CQL prompt in the top level keyspace and running the following commands.  Also, change the password.
 ```
 CREATE ROLE app_user WITH PASSWORD = 'AUniquePassword' AND LOGIN = true;
 ```
@@ -26,7 +26,8 @@ GRANT UPDATE ON KEYSPACE tribe TO app_user;
 GRANT SELECT ON KEYSPACE tribe TO app_user;
 ```
 
-Two .cql scripts are included to create a set of tables used by the not-yet-complete geolocation sharing mobile app [Tribe](http://tribe.posfoundations.com/).
+For context, we will create the service with a specific mobile app in mind.  Two .cql scripts are included to create a set of tables used by the not-yet-complete geolocation sharing mobile app [Tribe](http://tribe.posfoundations.com/).
+
 In a CQL Console, run the CQL in astra_backend.cql to create the tables used by the service and by the app.  Once the tables have been created, run the CQL in sample_data.cql to populate the tables with a small amount of data.
 Now we have fake user and app data to work with.
 
@@ -47,9 +48,9 @@ kubectl patch daemonsets -n projectcontour envoy -p '{"spec":{"template":{"spec"
 ```
 
 
-### Add secrets to kubernetes...
+### Create a cert and key for the web server...
 
-Let's create a certificate, key and secret for the web server.  We will also create secrets used to connect to an Astra database.  And then we will create several more secrets to hold sensitive information in environmental variables that we will inject into our pods.
+First create a certificate, key, and secret for the web server.  We will also create secrets used to connect to an Astra database.  And then we will create several more secrets to hold sensitive information in environmental variables that we will inject into our pods.
 
 Pick a more permanent location for the files if you like - /tmp may be purged depending on your operating system.
 
@@ -70,11 +71,13 @@ writing new private key to '/tmp/tls.key'
 
 ### Download the secure connect bundle for your Astra database
 
-On the Summary page of the [Astra](astra.datastax.com) database instance there is a link to download this bundle.  It has several files we will make secrets with.
+On the Summary page of the [Astra](astra.datastax.com) database instance there is a link to "Download secure conect bundle".  It has several files we will make secrets with.
 Download the file and unpackage it in a convenient directory.
 
 
 ### Create Kubernetes Secrets
+
+Some of the secrets will be references to files, and we will use those to bind the files to the pod.  Other secrets will be injected into the pod as environmental variables.  All of them are referenced in service.yaml file's Deployment section.
 
 The allocatorw3secret will let data be served by the webserver over https.
 
@@ -90,6 +93,9 @@ secret "allocatorw3secret" created
 Create kubernetes secrets used to connect to Astra using files in the secure connection bundle for your Astra database.  First, download the secure connect bundle, then change directories to that cert location before running...
 ```
 kubectl create secret tls astratls --cert=/tmp/cert --key=/tmp/key
+```
+and
+```
 kubectl create secret generic astraca --from-file=astraca=/tmp/ca.crt
 ```
 
@@ -111,7 +117,7 @@ kubectl create secret generic astraadmincreds --from-literal=adminusername='Admi
 
 ```
 
-The astratribeappcreds secret holds the username and password used to log in to the tribe keyspace.
+The astratribeappcreds secret holds the username and password used by the role which has permissions to log in to the tribe keyspace.
 ```
 kubectl create secret generic astratribeappcreds --from-literal=tribeappusername='TAUser' --from-literal=tribeapppassword='TAPassword'
 ```
@@ -122,9 +128,10 @@ Please replace CLUSTER_ID and CLUSTER_REGION with your values, which look simila
 kubectl create secret generic astraapiendpoint --from-literal=astraapiendpoint='https://CLUSTER_ID-CLUSTER_REGION.apps.astra.datastax.com/api/rest/v1/auth'
 ```
 
-The astracql host is similar, but points to a slightly different domain name.  Please replace CLUSTER_ID and CLUSTER_REGION with your values, which look similar to '7127f729-b4c5-4864-a15b-dba15c82a88e' and 'us-east1'.
+The astracqlhost secret is similar, but points to a slightly different domain name.  Please replace CLUSTER_ID and CLUSTER_REGION with your values, which look similar to '7127f729-b4c5-4864-a15b-dba15c82a88e' and 'us-east1'.
+```
 kubectl create secret generic astracqlhost --from-literal=astracqlhost='CLUSTER_ID-CLUSTER_REGION.db.astra.datastax.com'
-
+```
 
 Many secrets later, see that the secrets exist by running:
 ```
@@ -138,32 +145,35 @@ allocatorw3secret         kubernetes.io/tls                     2      11m
 astraadmincreds           Opaque                                2      11m
 astraapiendpoint          Opaque                                1      11m
 astraappkeyspace          Opaque                                1      11m
-astraappmanagerkeyspace   Opaque                                1      11m
-astraca                   Opaque                                1      11m
-astracqlhost              Opaque                                1      11m
-astratls                  kubernetes.io/tls                     2      11m
-astratribeappcreds        Opaque                                2      11m
+astraappmanagerkeyspace   Opaque                                1      10m
+astraca                   Opaque                                1      10m
+astracqlhost              Opaque                                1      10m
+astratls                  kubernetes.io/tls                     2      10m
+astratribeappcreds        Opaque                                2      9m
 ```
 
 These secrets are referenced in service.yaml and in main.go.
 
 
 ### Building the service
+
 Now that the environment is set up, we can compile our code.  We will use a Dockerfile that defines a two stage build which fetches the code we need from this repo, builds the executable, and copies it to a smaller alpine image.
-The code in main.go uses the gocql package to create a connection to the database, the trumail verifier package to validate email addresses, and runs a web server with endpoints for working with user data.
-In the below command, replace trota with your repository username, and tag it whatever you like.  In the Deployment section (spec.template.spec.containers[0].image) of the service.yaml file, enter the name of the image that is built when this is run...
+The code in main.go uses the [gocql package](https://github.com/gocql/gocql) to create a connection to the database and work with data, the [trumail verifier package](https://github.com/trumail/trumail) to validate email addresses, and runs a simple web server with endpoints for working with user data.
+Be in the root directory of this repo, and, in the below command, replace YOURREPO with your repository username, and tag it whatever you like.  In the Deployment section (spec.template.spec.containers[0].image) of the service.yaml file, enter the name of the image that is built when this is run...
 ```
-docker build -t trota/token-allocator:0.1.0 .
+docker build -t YOURREPO/token-allocator:0.1.15 .
 ```
 
 After it's finished building, push it to your repository...
 ```
-docker push trota/token-allocator:0.1.0
+docker push YOURREPO/token-allocator:0.1.15
 ```
 
 
 ### Create a Pod with the service.
-Change directory to the location of your local copy of this repository and run...
+
+Now that the docker image is available for pulling, we can use it in our k8s cluster.
+From the root directory of your local copy of this repository and run...
 ```
 kubectl apply -f service.yaml
 ```
@@ -176,6 +186,7 @@ kubectl port-forward service/token-allocator-service 8000:8000
 
 
 ### Get the Pod
+
 Get a list of pods
 ```
 kubectl get pods
@@ -198,16 +209,17 @@ cd home/service/logs
 ls
 cat allocator-log.txt
 ```
-Looking empty?  There will be more data after testing the endpoints.
+Looking rather empty?  There will be more data after testing the endpoints.
 
 
 ### Test the endpoints
+
 Send a curl request to the endpoint to fetch a token and uuid:
 ```
 curl -k -u dogdogalina@mrdogdogalina.com:ff9k3l2 https://localhost:8000/authToken
 ```
 
-If you have Python3 installed, or a Docker container with a Python3 environment, run test.py to test the Astra database GraphQL endpoint and the endpoints of our service.
+If you have Python3 installed, or a Docker container with a Python3 environment, run test.py to test the Astra database GraphQL endpoint, a couple of the Astra REST api endpoints, and the endpoints of our service.
 Prior to running the script, edit the endpoint variables to use your cluster ID and region in the urls.
 ```
 python3 test.py
@@ -216,23 +228,25 @@ python3 test.py
 You should see something that begins and ends something like:
 ```
 Testing token and uuid retrieval...
-token:  c416e172-a1c2-4316-9614-a7fa64170663
-requestID:  b52cca03-b2af-4196-b27d-2a9708c504c5
+token:  698e92f1-d40b-4d4b-aaf7-689bd9da532e
+requestID:  4f73fb4b-0d4a-fd52-a0b3-cee3a520a767
+
 ...
+
 Testing creating a user with an invalid email address
-status code:  200
+status code:  404
+Pass
 
 Tests completed
-
 ```
 
 
 ### Usage
-In an app, call the service endpoint to retrieve an Astra login token and transaction uuid.  Pass the email and password as entered by the user in the app's login screen to retrieve a fresh token and requestID.
+In an app, call the service endpoint to retrieve an Astra login token and transaction uuid.  Pass the email and password as entered by the user in the app's login screen to retrieve a fresh token and requestID.  The appID is a uuid that exists in the app_manager.app_user_credentials table, and is intended to be specific to one particular app.
 ```
 def get_astra_creds(email, password, appID):
     headers = {'x-app-id': appID}
-    r = requests.get('https://localhost:8000/authToken',
+    r = requests.get('https://subdomain.domain.ext/authToken',
         auth=HTTPBasicAuth(email, password),
         headers=headers,
         verify=False)
@@ -246,7 +260,7 @@ def get_astra_creds(email, password, appID):
 Later when connecting to Astra to get some data, use the token and requestID as credentials...
 
 ```
-def get_user_location(token, requestID):
+def get_tribe_members(token, requestID, ownerID):
     qHeaders = {'accept': '*/*'}
     qHeaders['content-type'] = 'application/json'
     qHeaders['x-cassandra-request-id'] = requestID
@@ -256,7 +270,7 @@ def get_user_location(token, requestID):
 
     q = """
     query {
-      tribeMembers(value: {ownerId) {
+      tribeMembers(value: {ownerId: $ownerId) {
         values {
                 ownerId
                 memberIds
@@ -264,10 +278,10 @@ def get_user_location(token, requestID):
       }
     }
     """
-
+    variables = {'ownerId': ownerID}
     resp = requests.post(url=url,
             headers=qHeaders,
-            json={'query': q})
+            json={'query': q, 'variables': variables})
 
     return resp
 
@@ -275,6 +289,7 @@ def get_user_location(token, requestID):
 
 
 ### Set up an A record
+
 So that a subdomain can point to the ip address of the ingress
 
 
@@ -286,8 +301,6 @@ So that a subdomain can point to the ip address of the ingress
 [gocql](https://github.com/gocql/gocql)
 
 [Trumail](https://github.com/trumail/trumail)
-
-
 
 
 ### License

@@ -22,9 +22,6 @@ import (
 // This implements a service for use with Datastax Astra which tries to make
 // issueing authorization tokens to mobile app users a little more secure
 
-// TODO: Move the user credentials table to it's own keyspace, and create
-// a separate connection for working with that keyspace
-
 var email string
 var count string
 var adminusername = os.Getenv("adminusername")

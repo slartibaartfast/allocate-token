@@ -9,7 +9,7 @@ import uuid
 # disable ssl warnings until we have proper certs
 urllib3.disable_warnings()
 
-#qUrl = "A Datastax GraphQl api endpoint"
+# A Datastax GraphQl api endpoint
 qUrl = "https://${ASTRA_CLUSTER_ID}-${ASTRA_CLUSTER_REGION}.apps.astra.datastax.com/api/graphql"
 
 # The rest api endpoint for fetching a user in the tribe keyspace
@@ -21,7 +21,7 @@ restUserCredsUrl = "https://${ASTRA_CLUSTER_ID}-${ASTRA_CLUSTER_REGION}.apps.ast
 # The app_id that was created by the insert statemnt in sample_data.cql
 appID = 'db9b4884-32db-4bbe-9869-63ce537bd250'
 
-# The user id created while loading testing data
+# A user id created while loading testing data
 userID = '00000000-0000-0000-0000-000000000000'
 
 #curl -k -u dogdogalina@mrdogdogalina.com:ff9k3l2 https://localhost:8000/
@@ -199,7 +199,7 @@ print("Testing that the app user cannot query the app_manager keyspace \
 via the rest endpoint...")
 user = get_user_credentials_rest(token, requestID)
 #user = user.json()
-assert user.status_code == 400, "Fail"
+assert user.status_code == 500, "Fail"
 print("Pass")
 print(" ")
 
@@ -233,7 +233,7 @@ print(" ")
 # test creating a new user with a valid email address
 #curl -k -u realemail@realdomain.com:Password https://localhost:8000/regUser
 print("Testing creating a user with a valid email address")
-new_user = create_new_user('mrtomrota@gmail.com', 'Password', appID)
+new_user = create_new_user('trota@posfoundations.com', 'Password', appID)
 assert new_user == 200, "Fail"
 print("Pass")
 print(" ")
@@ -242,7 +242,7 @@ print(" ")
 #curl -k -u idontexist@frankrizo.com:Password https://localhost:8000/regUser
 print("Testing creating a user with an invalid email address")
 non_user = create_new_user('idontexists@frankrizo.com', 'Password', appID)
-assert non_user == 200, "Fail"
+assert non_user == 404, "Fail"
 print("Pass")
 print(" ")
 

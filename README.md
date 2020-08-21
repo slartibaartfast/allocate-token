@@ -71,7 +71,7 @@ writing new private key to '/tmp/tls.key'
 
 ### Download the secure connect bundle for your Astra database
 
-On the Summary page of the [Astra](astra.datastax.com) database instance there is a link to "Download secure conect bundle".  It has several files we will make secrets with.
+On the Summary page of the Astra database instance there is a link to [Download secure conect bundle](https://docs.astra.datastax.com/docs/obtaining-database-credentials).  It has several files we will make secrets with.
 Download the file and unpackage it in a convenient directory.
 
 

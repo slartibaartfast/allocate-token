@@ -18,7 +18,7 @@
 USE app_manager;
 
 /* Keep track of users and which apps they subscribe to */
-CREATE TABLE IF NOT EXISTS tribe_user_credentials (
+CREATE TABLE IF NOT EXISTS app_user_credentials (
     email text,
     app_id uuid,
     user_id uuid,

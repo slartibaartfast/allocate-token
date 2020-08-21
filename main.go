@@ -183,7 +183,7 @@ func handleNewUser(w http.ResponseWriter, r *http.Request) {
 	err := validateUserEmail(email)
 	if err != nil {
 		http.Error(w, "invalid username", http.StatusNotFound)
-		log.Println("Error verifying email")
+		log.Println("Error verifying email ", email)
 		log.Println(err)
 	} else {
 		authToken, requestID, err := fetchToken()
@@ -198,7 +198,7 @@ func handleNewUser(w http.ResponseWriter, r *http.Request) {
 			log.Println(err)
 		}
 		// create a new record in the credentials table
-		err = insertNewUser(authToken, requestID, email, password, appID, userID.String())
+		err = insertNewUser(email, appID, password, requestID, authToken, userID.String())
 		if err != nil {
 			log.Println("Error creating new user")
 			log.Println(err)
@@ -341,6 +341,7 @@ func configureAstra() error {
 	return err
 }
 
+// validate that an email address exists and is probably not fake
 func validateUserEmail(email string) error {
 	v := trumail.NewVerifier("posfoundations.com", "development@posfoundations.com")
 	lookup, err := v.Verify(email)
@@ -357,7 +358,8 @@ func validateUserEmail(email string) error {
 func checkUsername(appID string, username string, password string) int {
 	var count int
 	if err := amsession.Query(
-		`SELECT count(*) FROM tribe_user_credentials WHERE app_id = ? and email = ? and password = ?`,
+		`SELECT count(*) FROM app_user_credentials
+		 WHERE app_id = ? and email = ? and password = ?`,
 		appID, username, password).Scan(&count); err != nil {
 		log.Println("Error confirming existance of user")
 		log.Println(err)
@@ -373,7 +375,8 @@ func validateUser(appID, username string, password string) error {
 
 	// Select a user with the supplied credentials
 	if err := amsession.Query(
-		`SELECT user_id FROM tribe_user_credentials WHERE app_id = ? and email = ? and password = ?`,
+		`SELECT user_id FROM app_user_credentials
+		 WHERE app_id = ? and email = ? and password = ?`,
 		appID, username, password).Scan(&userID); err != nil {
 		log.Println("Error validating user")
 		log.Println(err)
@@ -382,10 +385,7 @@ func validateUser(appID, username string, password string) error {
 	return nil
 }
 
-// Write the request-id and token to the user credentials table
-// TODO: New users need to be assigned a user id
-// TODO: this should also insert into tribe_users.last_login
-// var appkeyspace = os.Getenv("astraappkeyspace")
+// Write the request-id and token to the app_manager.app_user_credentials table
 func updateUserCreds(authToken string, uuid string, email string, password string, appID string) error {
 	log.Println("Updateing user: ", email)
 	log.Println("updateUserCreds authToken: ", authToken)
@@ -394,7 +394,7 @@ func updateUserCreds(authToken string, uuid string, email string, password strin
 	log.Println("updateUserCreds password: ", password)
 	log.Println("updateUserCreds appID: ", appID)
 	if err := amsession.Query(
-		`UPDATE tribe_user_credentials SET app_token = ?,
+		`UPDATE app_user_credentials SET app_token = ?,
 		 app_request_id = ?,
 		 date_creds_generated = toTimeStamp(now())
 		 WHERE email = ? and password = ? and app_id = ?`,
@@ -405,22 +405,21 @@ func updateUserCreds(authToken string, uuid string, email string, password strin
 	return nil
 }
 
-// Insert a new record in tribe_user_credentials
-func insertNewUser(authToken string, uuid string, email string, password string, appID string, userID string) error {
+// Insert a new record in app_manager.app_user_credentials
+func insertNewUser(email string, appID string, password string, requestID string, authToken string, userID string) error {
 	log.Println("Creating new user: ", email)
 	log.Println("updateUserCreds authToken: ", authToken)
-	log.Println("updateUserCreds uuid: ", uuid)
+	log.Println("updateUserCreds uuid: ", requestID)
 	log.Println("updateUserCreds email: ", email)
 	log.Println("updateUserCreds password: ", password)
 	log.Println("updateUserCreds appID: ", appID)
 	log.Println("updateUserCreds appID: ", userID)
 	if err := amsession.Query(
-		`UPDATE tribe_user_credentials SET app_token = ?,
-		 app_request_id = ?,
-		 date_creds_generated = toTimeStamp(now())
-		 WHERE email = ? and password = ? and app_id = ?`,
-		authToken, uuid, email, password, appID).Exec(); err != nil {
-		log.Println("Error updating tribe_user_credentials with token, uuid")
+		`INSERT INTO app_user_credentials (
+			email, app_id, password, app_request_id, app_token, date_creds_generated, user_id)
+		 VALUES (?, ?, ?, ?, ?, toTimeStamp(now()), ?)`,
+		email, appID, password, requestID, authToken, userID).Exec(); err != nil {
+		log.Println("Error inserting new record into tribe_user_credentials")
 		log.Println(err)
 	}
 	return nil

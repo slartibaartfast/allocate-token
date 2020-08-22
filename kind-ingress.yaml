@@ -1,0 +1,12 @@
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: token-allocator-ingress
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /authToken
+        backend:
+          serviceName: token-allocator-service
+          servicePort: 8000

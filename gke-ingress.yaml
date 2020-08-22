@@ -1,0 +1,38 @@
+# Create a single service Ingress resource
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: token-allocator-ingress
+  labels:
+    app: token-allocator
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.allow-http: "false"
+    #kubernetes.io/ingress.global-static-ip-name: "allocator-static-ip"
+spec:
+  tls:
+  - secretName: allocatorw3secret
+  backend:
+    serviceName: token-allocator-service
+    servicePort: 8000
+  rules:
+  - host: my-allocator-w3
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: token-allocator-service
+          servicePort: 8000
+      - path: /healthz
+        backend:
+          serviceName: token-allocator-service
+          servicePort: 8000
+      - path: /authToken
+        backend:
+          serviceName: token-allocator-service
+          servicePort: 8000
+      - path: /regUser
+        backend:
+          serviceName: token-allocator-service
+          servicePort: 8000

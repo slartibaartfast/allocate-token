@@ -86,7 +86,8 @@ func main() {
 	http.HandleFunc("/regUser", getOnly(handleNewUser))
 
 	// Run the HTTP server using the bound certificate and key for TLS
-	if err := http.ListenAndServeTLS(":8000", "/home/service/certs/tls.crt", "/home/service/certs/tls.key", nil); err != nil {
+	err = http.ListenAndServeTLS(":8000", "/home/service/certs/tls.crt", "/home/service/certs/tls.key", nil)
+	if err != nil {
 		log.Println("HTTPS server failed to run")
 	} else {
 		log.Println("HTTPS server is running on port 8000")

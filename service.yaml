@@ -19,7 +19,7 @@ metadata:
   labels:
     app: token-allocator
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: token-allocator
@@ -30,9 +30,17 @@ spec:
     spec:
       containers:
       - name: token-allocator
-        image: docker.io/trota/token-allocator:0.1.15
+        image: docker.io/trota/token-allocator:0.1.16
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
+        livenessProbe:
+          httpGet:
+            scheme: HTTPS
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 3
+          periodSeconds: 5
         envFrom:
         - secretRef:
             name: astraadmincreds
@@ -63,16 +71,3 @@ spec:
       - name: astra-tls-volume
         secret:
           secretName: astratls
----
-apiVersion: networking.k8s.io/v1beta1
-kind: Ingress
-metadata:
-  name: token-allocator-ingress
-spec:
-  rules:
-  - http:
-      paths:
-      - path: /authToken
-        backend:
-          serviceName: token-allocator-service
-          servicePort: 8000

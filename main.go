@@ -90,9 +90,11 @@ func main() {
 	tlserr := http.ListenAndServeTLS(":8000", "/home/service/certs/tls.crt", "/home/service/certs/tls.key", nil)
 	if tlserr != nil {
 		log.Println("HTTPS server failed to run")
+		log.Println(err)
 	} else {
 		log.Println("HTTPS server is running on port 8000")
 	}
+	log.Println("tlserr: ", tlserr)
 }
 
 // Limit verbs the web server handles

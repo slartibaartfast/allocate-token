@@ -64,6 +64,7 @@ func main() {
 		log.Println("Started logging")
 	}
 
+	// set up the connection to Astra
 	err = configureAstra()
 	if err != nil {
 		log.Println("Error initializing db")
@@ -85,14 +86,57 @@ func main() {
 	// Register a new user
 	http.HandleFunc("/regUser", getOnly(handleNewUser))
 
+	// configure tls for the web server
+	certPath, err := filepath.Abs("/home/service/w3certs/localhost/tls.crt")
+	if err != nil {
+		log.Println("Error with certPath")
+		log.Println(err)
+	}
+	keyPath, err := filepath.Abs("/home/service/w3certs/localhost/tls.key")
+	if err != nil {
+		log.Println("Error with keyPath")
+		log.Println(err)
+	}
+	rootCaPath, err := filepath.Abs("/home/service/w3certs/w3ca")
+	if err != nil {
+		log.Println("Error with rootCaPath")
+		log.Println(err)
+	}
+	clientCA, err := ioutil.ReadFile(rootCaPath)
+	if err != nil {
+		log.Fatalf("reading cert failed : %v", err)
+	}
+	clientCAPool := x509.NewCertPool()
+	clientCAPool.AppendCertsFromPEM(clientCA)
+	log.Println("ClientCA loaded")
+
+	// configure http server with tls configuration
+	s := &http.Server{
+		Addr: ":8080",
+		TLSConfig: &tls.Config{
+			ClientCAs:  clientCAPool,
+			ClientAuth: tls.RequireAndVerifyClientCert,
+			// Loads the server's certificate and sends it to the client
+			GetCertificate: func(info *tls.ClientHelloInfo) (certificate *tls.Certificate, e error) {
+				log.Println("client requested certificate")
+				c, err := tls.LoadX509KeyPair(certPath, keyPath)
+				if err != nil {
+					fmt.Printf("Error loading server key pair: %v\n", err)
+					return nil, err
+				}
+				return &c, nil
+			},
+		},
+	}
+
 	// Run the HTTP server using the bound certificate and key for TLS
 	log.Println("Starting ListenAndServeTLS")
-	tlserr := http.ListenAndServeTLS(":8000", "/home/service/w3certs/localhost/tls.crt", "/home/service/w3certs/localhost/tls.key", nil)
-	//tlserr := http.ListenAndServeTLS(":8000", "/home/service/w3certs/cert.pem", "/home/service/w3certs/key.pem", nil)
-	log.Fatal(err)
+	//tlserr := http.ListenAndServeTLS(":8000", "/home/service/w3certs/localhost/tls.crt", "/home/service/w3certs/localhost/tls.key", nil)
+	tlserr := s.ListenAndServeTLS("", "")
+	log.Fatal(tlserr)
 	if tlserr != nil {
 		log.Println("HTTPS server failed to run")
-		log.Println(err)
+		log.Println(tlserr)
 	} else {
 		log.Println("HTTPS server is running on port 8000")
 	}

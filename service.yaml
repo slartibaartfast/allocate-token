@@ -30,7 +30,7 @@ spec:
     spec:
       containers:
       - name: token-allocator
-        image: docker.io/trota/token-allocator:0.1.22
+        image: docker.io/trota/token-allocator:0.1.23
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
@@ -67,7 +67,7 @@ spec:
             name: astraappkeyspace
         volumeMounts:
         - name: allocator-w3-secret-volume
-          mountPath: "/home/service/w3certs"
+          mountPath: "/home/service/w3certs/localhost"
         - name: allocator-ingress-secret-volume
           mountPath: "/home/service/ingresscerts"
         - name: astra-tls-volume

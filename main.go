@@ -87,7 +87,7 @@ func main() {
 
 	// Run the HTTP server using the bound certificate and key for TLS
 	log.Println("Starting ListenAndServeTLS")
-	tlserr := http.ListenAndServeTLS(":8000", "/home/service/certs/tls.crt", "/home/service/certs/tls.key", nil)
+	tlserr := http.ListenAndServeTLS(":8000", "/home/service/w3certs/tls.crt", "/home/service/w3certs/tls.key", nil)
 	log.Fatal(err)
 	if tlserr != nil {
 		log.Println("HTTPS server failed to run")
@@ -218,13 +218,13 @@ func handleNewUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// fetch a api access token from Astra api, return the token and a uuid
-// the token is retrieved on behalf of the app db account with lesser privileges
+// fetch an api access token from the Astra api, return the token and a uuid
+// the token is retrieved on behalf of the app db account with the least privileges
 func fetchToken() (string, string, error) {
 	var apptoken = new(astraResponse)
 
 	// generate a uuid
-	// gocql.UUID also generates one... var id gocqlUUID
+	// gocql.UUID can also generate one
 	b := make([]byte, 16)
 	_, err := rand.Read(b)
 	if err != nil {

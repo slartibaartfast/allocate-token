@@ -34,6 +34,15 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
+        readinessProbe:
+          httpGet:
+            scheme: HTTPS
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
         livenessProbe:
           httpGet:
             scheme: HTTPS
@@ -41,6 +50,8 @@ spec:
             port: 8000
           initialDelaySeconds: 3
           periodSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
         envFrom:
         - secretRef:
             name: astraadmincreds
@@ -56,7 +67,9 @@ spec:
             name: astraappkeyspace
         volumeMounts:
         - name: allocator-w3-secret-volume
-          mountPath: "/home/service/certs"
+          mountPath: "/home/service/w3certs"
+        - name: allocator-ingress-secret-volume
+          mountPath: "/home/service/ingresscerts"
         - name: astra-tls-volume
           mountPath: "/home/service/astracerts"
         - name: astra-ca-volume
@@ -65,6 +78,9 @@ spec:
       - name: allocator-w3-secret-volume
         secret:
           secretName: allocatorw3secret
+      - name: allocator-ingress-secret-volume
+        secret:
+          secretName: allocatoringresssecret
       - name: astra-ca-volume
         secret:
           secretName: astraca

@@ -12,12 +12,12 @@ metadata:
     #kubernetes.io/ingress.global-static-ip-name: "allocator-static-ip"
 spec:
   tls:
-  - secretName: allocatorw3secret
+  - secretName: allocatoringresssecret
   backend:
     serviceName: token-allocator-service
     servicePort: 8000
   rules:
-  - host: my-allocator-w3
+  - host: astra.posfoundations.com
     http:
       paths:
       - path: /

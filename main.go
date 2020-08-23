@@ -115,7 +115,8 @@ func main() {
 		Addr: ":8080",
 		TLSConfig: &tls.Config{
 			ClientCAs:  clientCAPool,
-			ClientAuth: tls.RequireAndVerifyClientCert,
+			ClientAuth: tls.RequestClientCert,
+			//ClientAuth: tls.RequireAndVerifyClientCert,
 			// Loads the server's certificate and sends it to the client
 			GetCertificate: func(info *tls.ClientHelloInfo) (certificate *tls.Certificate, e error) {
 				log.Println("client requested certificate")
@@ -129,9 +130,10 @@ func main() {
 		},
 	}
 
-	// Run the HTTP server using the bound certificate and key for TLS
 	log.Println("Starting ListenAndServeTLS")
+	// Run the HTTP server using the bound certificate and key for TLS
 	//tlserr := http.ListenAndServeTLS(":8000", "/home/service/w3certs/localhost/tls.crt", "/home/service/w3certs/localhost/tls.key", nil)
+	// Run the HTTP server using the tls configuration
 	tlserr := s.ListenAndServeTLS("", "")
 	log.Fatal(tlserr)
 	if tlserr != nil {

@@ -30,7 +30,7 @@ spec:
     spec:
       containers:
       - name: token-allocator
-        image: docker.io/trota/token-allocator:0.1.26
+        image: docker.io/trota/token-allocator:0.1.27
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
@@ -81,8 +81,8 @@ spec:
         secret:
           secretName: allocatorw3secret
       - name: w3-ca-volume
-          secret:
-            secretName: w3ca
+        secret:
+          secretName: w3ca
       - name: allocator-ingress-secret-volume
         secret:
           secretName: allocatoringresssecret

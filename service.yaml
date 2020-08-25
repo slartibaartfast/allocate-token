@@ -69,9 +69,9 @@ spec:
             name: astraappkeyspace
         volumeMounts:
         - name: allocator-w3-secret-volume
-          mountPath: "/home/service/w3certs/localhost"
-        - name: w3-ca-volume
           mountPath: "/home/service/w3certs"
+        - name: w3-ca-volume
+          mountPath: "/home/service/w3ca"
         - name: allocator-ingress-secret-volume
           mountPath: "/home/service/ingresscerts"
         - name: astra-tls-volume

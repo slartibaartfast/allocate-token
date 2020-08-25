@@ -31,6 +31,8 @@ spec:
       containers:
       - name: token-allocator
         image: docker.io/trota/token-allocator:0.1.28
+        terminationMessagePath: "/tmp/allocator-crash-log"
+        terminationMessagePolicy: File
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
@@ -39,7 +41,7 @@ spec:
             scheme: HTTPS
             path: /healthz
             port: 8000
-          initialDelaySeconds: 30
+          initialDelaySeconds: 300
           periodSeconds: 5
           successThreshold: 1
           failureThreshold: 3
@@ -48,7 +50,7 @@ spec:
             scheme: HTTPS
             path: /healthz
             port: 8000
-          initialDelaySeconds: 3
+          initialDelaySeconds: 300
           periodSeconds: 5
           successThreshold: 1
           failureThreshold: 3

@@ -89,7 +89,7 @@ func main() {
 	log.Println("Starting ListenAndServeTLS")
 	// Run the HTTP server using the bound certificate and key for TLS, trust everyone
 	tlserr := http.ListenAndServeTLS(":8000", "/home/service/w3certs/localhost/cert.pem", "/home/service/w3certs/localhost/key.pem", nil)
-	log.Fatal(tlserr)
+	//log.Fatal(tlserr)
 	if tlserr != nil {
 		log.Println("HTTPS server failed to run")
 		log.Println(tlserr)

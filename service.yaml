@@ -30,7 +30,7 @@ spec:
     spec:
       containers:
       - name: token-allocator
-        image: docker.io/trota/token-allocator:0.1.30
+        image: docker.io/trota/token-allocator:0.1.31
         terminationMessagePath: "/tmp/allocator-crash-log"
         terminationMessagePolicy: File
         imagePullPolicy: Always
